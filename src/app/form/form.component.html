@@ -1,0 +1,20 @@
+<form [formGroup]="formGroup">
+    <div class="form-group">
+        <div class="card text-center justify-content-center p-5">
+            <h5>Select your bank statement below</h5>
+            <div class="row">
+                <select class="form-control mt-3 col-6 offset-3" formControlName="bank" id="bank">
+                    <option *ngFor="let b of banks" [ngValue]="b.value">{{ b.name }}</option>
+                </select>
+            </div>
+            <div class="file-input row mt-3">
+                <div class="col-6 offset-3">
+                    <input formControlName="bankStatementFile" type="file" class="mt-3 file" id="file"
+                        aria-label="Bank Statement File" placeholder="Bank Statement File"
+                        (change)="onFileSelected($event.target.files)" required>
+                    <label for="file">Select file</label>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>

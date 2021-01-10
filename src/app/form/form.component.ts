@@ -1,5 +1,4 @@
-import { Buffer } from 'buffer';
-import { Bank } from '@ashray/statement-converter';
+import { Bank } from '@ashray.mehta/statement-converter';
 import { Component, EventEmitter, Output } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 

@@ -8,7 +8,7 @@ import { AppRoutingModule } from './app-routing.module';
 import { BrowserModule } from '@angular/platform-browser';
 import { LoaderComponent } from './loader/loader.component';
 import { NgbProgressbarModule } from '@ng-bootstrap/ng-bootstrap';
-import { StatementConverter } from '@ashray/statement-converter';
+import { StatementConverter } from '@ashray.mehta/statement-converter';
 import { DragDropDirective } from './directives/drag-drop/drag-drop.directive';
 
 @NgModule({

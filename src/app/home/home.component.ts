@@ -1,6 +1,6 @@
 import { saveAs } from 'file-saver';
 import { Component } from '@angular/core';
-import { Bank, StatementConverter } from '@ashray/statement-converter';
+import { Bank, StatementConverter } from '@ashray.mehta/statement-converter';
 
 @Component({
     templateUrl: 'home.component.html'
@@ -13,9 +13,7 @@ export class HomeComponent {
     }
 
     public async onFormSubmitted(data: { buffer: Buffer, bank: Bank }) {
-        console.log(data);
         const convertedStatement = await this.statementConverter.convert(data.bank, data.buffer);
-        console.log(convertedStatement);
         this.saveToFileSystem(convertedStatement, `${data.bank}-converted-${new Date().toISOString()}.qif`);
     }
 

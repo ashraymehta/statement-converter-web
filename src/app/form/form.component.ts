@@ -14,6 +14,7 @@ export class FormComponent {
     public readonly banks = Object.keys(Bank).sort().map(k => ({ name: k, value: Bank[k] }));
     @Output()
     public readonly onFormSubmitted = new EventEmitter<{ buffer: Buffer, bank: Bank }>();
+    public shouldShowDropZone: boolean = false;
 
     public constructor(formBuilder: FormBuilder, fileReader: FileReader) {
         this.fileReader = fileReader;
@@ -47,5 +48,13 @@ export class FormComponent {
 
             reader.readAsArrayBuffer(file);
         });
+    }
+
+    public showDropZone() {
+        this.shouldShowDropZone = true;
+    }
+
+    public hideDropZone() {
+        this.shouldShowDropZone = false;
     }
 }

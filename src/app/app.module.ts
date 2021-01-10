@@ -9,13 +9,15 @@ import { BrowserModule } from '@angular/platform-browser';
 import { LoaderComponent } from './loader/loader.component';
 import { NgbProgressbarModule } from '@ng-bootstrap/ng-bootstrap';
 import { StatementConverter } from '@ashray/statement-converter';
+import { DragDropDirective } from './directives/drag-drop/drag-drop.directive';
 
 @NgModule({
     declarations: [
         AppComponent,
         HomeComponent,
         LoaderComponent,
-        FormComponent
+        FormComponent,
+        DragDropDirective
     ],
     imports: [
         BrowserModule,

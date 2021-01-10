@@ -31,8 +31,6 @@
     "cldr-data": "^36.0.0",
     "file-saver": "^2.0.5",
     "globalize": "^1.6.0",
-    "lottie-web": "^5.7.1",
-    "ngx-lottie": "^6.3.0",
     "rxjs": "~6.5.5",
     "tslib": "^2.0.0",
     "zone.js": "~0.10.3"

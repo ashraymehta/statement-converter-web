@@ -12,7 +12,9 @@ import {Component} from '@angular/core';
         </a>
       </nav>
 
+      
       <div class="container" style="height: calc(100vh - 49px)">
+        <app-toasts aria-live="polite" aria-atomic="true"></app-toasts>
         <router-outlet></router-outlet>
       </div>`
 })

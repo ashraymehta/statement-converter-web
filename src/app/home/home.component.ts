@@ -35,7 +35,7 @@ export class HomeComponent {
         "Oops!",
         "Something went wrong while converting your statement."
       );
-      console.error("Something went wrong while converting the statment.", err);
+      console.error("Something went wrong while converting the statement.", err);
     }
   }
 

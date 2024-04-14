@@ -23,8 +23,8 @@ jobs:
     - run: npm ci
     - run: npm run build
     - name: Deploy to GitHub Pages
-      uses: JamesIves/github-pages-deploy-action@3.7.1
+      uses: JamesIves/github-pages-deploy-action@v4
       with:
-        BRANCH: gh-pages
-        FOLDER: dist/statement-converter
-        CLEAN: true
+        branch: gh-pages
+        folder: dist/statement-converter
+        clean: true

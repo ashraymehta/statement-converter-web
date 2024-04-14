@@ -26,7 +26,7 @@
     "@angular/platform-browser-dynamic": "^14.3.0",
     "@angular/router": "^14.3.0",
     "@ashray.mehta/statement-converter": "^1.4.4",
-    "@ng-bootstrap/ng-bootstrap": "^12.1.2",
+    "@ng-bootstrap/ng-bootstrap": "^13.1.1",
     "bootstrap": "^4.5.0",
     "cldr-data": "^36.0.0",
     "file-saver": "^2.0.5",

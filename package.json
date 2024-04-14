@@ -16,15 +16,15 @@
     "url": "https://github.com/ashraymehta/statement-converter-web/"
   },
   "dependencies": {
-    "@angular/animations": "~10.0.9",
-    "@angular/common": "~10.0.9",
-    "@angular/compiler": "~10.0.9",
-    "@angular/core": "~10.0.9",
-    "@angular/forms": "~10.0.9",
-    "@angular/localize": "~10.0.9",
-    "@angular/platform-browser": "~10.0.9",
-    "@angular/platform-browser-dynamic": "~10.0.9",
-    "@angular/router": "~10.0.9",
+    "@angular/animations": "~11.2.14",
+    "@angular/common": "~11.2.14",
+    "@angular/compiler": "~11.2.14",
+    "@angular/core": "~11.2.14",
+    "@angular/forms": "~11.2.14",
+    "@angular/localize": "~11.2.14",
+    "@angular/platform-browser": "~11.2.14",
+    "@angular/platform-browser-dynamic": "~11.2.14",
+    "@angular/router": "~11.2.14",
     "@ashray.mehta/statement-converter": "^1.4.4",
     "@ng-bootstrap/ng-bootstrap": "^8.0.0",
     "bootstrap": "^4.5.0",
@@ -36,12 +36,13 @@
     "zone.js": "~0.10.3"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "~0.1000.6",
-    "@angular/cli": "~10.0.6",
-    "@angular/compiler-cli": "~10.0.9",
+    "@angular-devkit/build-angular": "~0.1102.19",
+    "@angular/cli": "~11.2.19",
+    "@angular/compiler-cli": "~11.2.14",
     "@types/node": "^12.11.1",
     "ts-node": "~8.3.0",
     "tslint": "~6.1.0",
-    "typescript": "~3.9.5"
-  }
+    "typescript": "~4.1.6"
+  },
+  "packageManager": "yarn@1.22.21+sha1.1959a18351b811cdeedbd484a8f86c3cc3bbaf72"
 }

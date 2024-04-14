@@ -10,6 +10,9 @@
   "browser": {
     "fs": false
   },
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "description": "A web based application to convert bank statements into QIF.",
   "repository": {
     "type": "git",

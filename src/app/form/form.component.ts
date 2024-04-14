@@ -1,6 +1,6 @@
 import { Bank } from '@ashray.mehta/statement-converter';
 import { Component, EventEmitter, Output } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 
 @Component({
     selector: 'app-form',
@@ -8,14 +8,14 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
     styleUrls: ['./form.component.scss']
 })
 export class FormComponent {
-    public readonly formGroup: FormGroup;
+    public readonly formGroup: UntypedFormGroup;
     private readonly fileReader: FileReader;
     public readonly banks = Object.keys(Bank).sort().map(k => ({ name: k, value: Bank[k] }));
     @Output()
     public readonly onFormSubmitted = new EventEmitter<{ buffer: Buffer, bank: Bank }>();
     public shouldShowDropZone: boolean = false;
 
-    public constructor(formBuilder: FormBuilder, fileReader: FileReader) {
+    public constructor(formBuilder: UntypedFormBuilder, fileReader: FileReader) {
         this.fileReader = fileReader;
         this.formGroup = formBuilder.group({
             bank: formBuilder.control(null, [Validators.required]),
@@ -32,7 +32,7 @@ export class FormComponent {
         this.resetSelectedFile(this.formGroup);
     }
 
-    private resetSelectedFile(formGroup: FormGroup) {
+    private resetSelectedFile(formGroup: UntypedFormGroup) {
         formGroup.controls.bankStatementFile.reset();
     }
 

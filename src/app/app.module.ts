@@ -5,8 +5,7 @@ import { HomeComponent } from './home/home.component';
 import { FormComponent } from './form/form.component';
 import { AppRoutingModule } from './app-routing.module';
 import { BrowserModule } from '@angular/platform-browser';
-import { NgbProgressbarModule } from '@ng-bootstrap/ng-bootstrap';
-import { ToastModule } from './toast//toasts.module';
+import { ToastModule } from './toast/toasts.module';
 import { StatementConverter } from '@ashray.mehta/statement-converter';
 import { DragDropDirective } from './directives/drag-drop/drag-drop.directive';
 
@@ -20,7 +19,6 @@ import { DragDropDirective } from './directives/drag-drop/drag-drop.directive';
     imports: [
         BrowserModule,
         AppRoutingModule,
-        NgbProgressbarModule,
         ReactiveFormsModule,
         ToastModule
     ],

@@ -26,5 +26,5 @@ jobs:
       uses: JamesIves/github-pages-deploy-action@v4
       with:
         branch: gh-pages
-        folder: dist/statement-converter
+        folder: dist/statement-converter/browser
         clean: true

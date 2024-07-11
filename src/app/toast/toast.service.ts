@@ -1,4 +1,4 @@
-import { pull } from "lodash";
+import { pull } from "lodash-es";
 import { EventEmitter, Injectable } from "@angular/core";
 
 @Injectable({ providedIn: "root" })

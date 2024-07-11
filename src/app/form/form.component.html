@@ -6,21 +6,24 @@
                 <h5>Drop files here</h5>
             </div>
             <div class="form-content" *ngIf="!shouldShowDropZone">
-                <h5>Select your bank statement</h5>
-                <div class="row">
-                    <div class="mt-3 col-6 offset-3">
-                        <select class="form-control" formControlName="bank" id="bank">
-                            <option *ngFor="let b of banks" [ngValue]="b.value">{{ b.name }}</option>
-                        </select>
+                <div class="card" style="border-style: dashed; box-shadow: none;">
+                    <span class="material-symbols-outlined" style="font-size: 5rem;"> upload </span>
+                    <div class="mt-2">Select your bank statements</div>
+                    <div class="file-input row mt-3">
+                        <div class="col-6 offset-3">
+                            <input formControlName="bankStatementFile" type="file" class="mt-3 file" id="file"
+                                aria-label="Bank Statement File" placeholder="Bank Statement File"
+                                (change)="onFileSelected($event.target.files)" required>
+                            <label for="file" type="button" class="btn btn-outline-primary">SELECT</label>
+                        </div>
                     </div>
                 </div>
-                <div class="file-input row mt-3">
-                    <div class="col-6 offset-3">
-                        <input formControlName="bankStatementFile" type="file" class="mt-3 file" id="file"
-                            aria-label="Bank Statement File" placeholder="Bank Statement File"
-                            (change)="onFileSelected($event.target.files)" required>
-                        <button for="file" type="button" class="btn btn-primary">SELECT</button>
-                    </div>
+            </div>
+            <div class="row">
+                <div class="mt-3 col-6 offset-3">
+                    <select class="form-control" formControlName="bank" id="bank">
+                        <option *ngFor="let b of banks" [ngValue]="b.value">{{ b.name }}</option>
+                    </select>
                 </div>
             </div>
         </div>

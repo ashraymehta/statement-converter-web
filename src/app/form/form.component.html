@@ -2,9 +2,6 @@
     <div class="form-group">
         <div class="card text-center justify-content-center p-5" appDragDrop (onFileDropped)="onFileSelected($event)"
             (onDragOver)="showDropZone()" (onDragLeave)="hideDropZone()">
-            <div class="drop-zone" *ngIf="shouldShowDropZone">
-                <h5>Drop files here</h5>
-            </div>
             <div class="form-content" *ngIf="!shouldShowDropZone">
                 <div class="card" style="border-style: dashed; box-shadow: none;">
                     <span class="material-symbols-outlined" style="font-size: 5rem;"> upload </span>
@@ -17,6 +14,12 @@
                             <label for="file" type="button" class="btn btn-outline-primary">SELECT</label>
                         </div>
                     </div>
+                </div>
+            </div>
+            <div class="drop-zone" *ngIf="shouldShowDropZone">
+                <div class="card" style="border-style: dashed; box-shadow: none;">
+                    <span class="material-symbols-outlined" style="font-size: 5rem;"> place_item </span>
+                    <div class="mt-2">Drop files here</div>
                 </div>
             </div>
             <div class="row">

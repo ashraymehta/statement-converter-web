@@ -1,35 +1,41 @@
 <form [formGroup]="formGroup">
-    <div class="form-group">
-        <div class="card text-center justify-content-center p-5" appDragDrop (onFileDropped)="onFileSelected($event)"
-            (onDragOver)="showDropZone()" (onDragLeave)="hideDropZone()">
-            <div class="form-content" *ngIf="!shouldShowDropZone">
-                <div class="row">
-                    <div class="col text-start"><label for="bank">Select bank</label></div>
-                    <div class="col">
-                        <select class="form-control" formControlName="bank" id="bank">
-                            <option *ngFor="let b of banks" [ngValue]="b.value">{{ b.name }}</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="card mt-3" style="border-style: dashed; box-shadow: none;">
-                    <span class="material-symbols-outlined" style="font-size: 5rem;"> upload </span>
-                    <div class="mt-2">Select your bank statements</div>
-                    <div class="file-input row mt-3">
-                        <div class="col-6 offset-3">
-                            <input formControlName="bankStatementFile" type="file" class="mt-3 file" id="file"
-                                aria-label="Bank Statement File" placeholder="Bank Statement File"
-                                (change)="onFileSelected($event.target.files)" required>
-                            <label for="file" type="button" class="btn btn-primary">SELECT</label>
-                        </div>
-                    </div>
-                </div>
+  <div class="form-group">
+    <div class="card text-center justify-content-center p-5" appDragDrop (onFileDropped)="onFileSelected($event)"
+      (onDragOver)="showDropZone()" (onDragLeave)="hideDropZone()">
+      @if (!shouldShowDropZone) {
+        <div class="form-content">
+          <div class="row">
+            <div class="col text-start"><label for="bank">Select bank</label></div>
+            <div class="col">
+              <select class="form-control" formControlName="bank" id="bank">
+                @for (b of banks; track b) {
+                  <option [ngValue]="b.value">{{ b.name }}</option>
+                }
+              </select>
             </div>
-            <div class="drop-zone" *ngIf="shouldShowDropZone">
-                <div class="card" style="border-style: dashed; box-shadow: none;">
-                    <span class="material-symbols-outlined" style="font-size: 5rem;"> place_item </span>
-                    <div class="mt-2">Drop files here</div>
-                </div>
+          </div>
+          <div class="card mt-3" style="border-style: dashed; box-shadow: none;">
+            <span class="material-symbols-outlined" style="font-size: 5rem;"> upload </span>
+            <div class="mt-2">Select your bank statements</div>
+            <div class="file-input row mt-3">
+              <div class="col-6 offset-3">
+                <input formControlName="bankStatementFile" type="file" class="mt-3 file" id="file"
+                  aria-label="Bank Statement File" placeholder="Bank Statement File"
+                  (change)="onFileSelected($event.target.files)" required>
+                <label for="file" type="button" class="btn btn-primary">SELECT</label>
+              </div>
             </div>
+          </div>
         </div>
+      }
+      @if (shouldShowDropZone) {
+        <div class="drop-zone">
+          <div class="card" style="border-style: dashed; box-shadow: none;">
+            <span class="material-symbols-outlined" style="font-size: 5rem;"> place_item </span>
+            <div class="mt-2">Drop files here</div>
+          </div>
+        </div>
+      }
     </div>
+  </div>
 </form>

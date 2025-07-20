@@ -1,11 +1,12 @@
-<ngb-toast
-  *ngFor="let toast of toasts"
-  [header]="toast.header"
-  [autohide]="true"
-  [delay]="toast.delay || 5000"
-  (hide)="toastService.remove(toast)"
-  [class]="toast.classname"
-  animation=true
->
-  {{ toast.body }}
-</ngb-toast>
+@for (toast of toasts; track toast) {
+  <ngb-toast
+    [header]="toast.header"
+    [autohide]="true"
+    [delay]="toast.delay || 5000"
+    (hide)="toastService.remove(toast)"
+    [class]="toast.classname"
+    animation=true
+    >
+    {{ toast.body }}
+  </ngb-toast>
+}

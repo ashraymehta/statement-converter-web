@@ -2,9 +2,10 @@ import { Component, OnInit } from "@angular/core";
 import { ToastService } from "./toast.service";
 
 @Component({
-  selector: "app-toasts",
-  styleUrls: ["./toasts.component.scss"],
-  templateUrl: "./toasts.component.html",
+    selector: "app-toasts",
+    styleUrls: ["./toasts.component.scss"],
+    templateUrl: "./toasts.component.html",
+    standalone: false
 })
 export class ToastsComponent implements OnInit {
   public toasts: any[] = [];

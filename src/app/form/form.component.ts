@@ -5,7 +5,8 @@ import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms
 @Component({
     selector: 'app-form',
     templateUrl: 'form.component.html',
-    styleUrls: ['./form.component.scss']
+    styleUrls: ['./form.component.scss'],
+    standalone: false
 })
 export class FormComponent {
     public readonly formGroup: UntypedFormGroup;

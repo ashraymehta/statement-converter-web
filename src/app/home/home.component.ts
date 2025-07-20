@@ -4,7 +4,8 @@ import { Bank, StatementConverter } from "@ashray.mehta/statement-converter";
 import { ToastService } from "../toast/toast.service";
 
 @Component({
-  templateUrl: "home.component.html",
+    templateUrl: "home.component.html",
+    standalone: false
 })
 export class HomeComponent {
   private readonly toastService: ToastService;

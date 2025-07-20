@@ -16,7 +16,8 @@ import {Component} from '@angular/core';
       <div class="container" style="height: calc(100vh - 49px)">
         <app-toasts aria-live="polite" aria-atomic="true"></app-toasts>
         <router-outlet></router-outlet>
-      </div>`
+      </div>`,
+    standalone: false
 })
 export class AppComponent {
 }

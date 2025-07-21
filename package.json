@@ -34,7 +34,7 @@
     "cldr-data": "36.0.4",
     "file-saver": "2.0.5",
     "globalize": "1.7.0",
-    "rxjs": "7.8.1",
+    "rxjs": "7.8.2",
     "tslib": "2.8.1",
     "zone.js": "0.15.1"
   },

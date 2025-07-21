@@ -31,7 +31,7 @@
     "@ashray.mehta/statement-converter": "1.5.3",
     "@ng-bootstrap/ng-bootstrap": "19.0.1",
     "bootstrap": "5.3.7",
-    "cldr-data": "36.0.2",
+    "cldr-data": "36.0.4",
     "file-saver": "2.0.5",
     "globalize": "1.7.0",
     "rxjs": "7.8.1",

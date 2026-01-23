@@ -13,7 +13,7 @@ export class FormComponent {
     private readonly fileReader: FileReader;
     public readonly banks = Object.keys(Bank).sort().map(k => ({ name: k, value: Bank[k] }));
     @Output()
-    public readonly onFormSubmitted = new EventEmitter<{ buffer: Buffer, bank: Bank }>();
+    public readonly onFormSubmitted = new EventEmitter<{ buffer: ArrayBuffer, bank: Bank }>();
     public shouldShowDropZone: boolean = false;
 
     public constructor(formBuilder: UntypedFormBuilder, fileReader: FileReader) {
@@ -37,12 +37,12 @@ export class FormComponent {
         formGroup.controls.bankStatementFile.reset();
     }
 
-    public readFileContent(file: File): Promise<Buffer> {
-        return new Promise<Buffer>((resolve, reject) => {
+    public readFileContent(file: File): Promise<ArrayBuffer> {
+        return new Promise<ArrayBuffer>((resolve, reject) => {
             const reader = this.fileReader;
 
             reader.onload = (e) => {
-                const buffer = reader.result as Buffer;
+                const buffer = reader.result as ArrayBuffer;
                 resolve(buffer);
             };
 

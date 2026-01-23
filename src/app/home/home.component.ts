@@ -19,7 +19,7 @@ export class HomeComponent {
     this.toastService = toastService;
   }
 
-  public async onFormSubmitted(data: { buffer: Buffer; bank: Bank }) {
+  public async onFormSubmitted(data: { buffer: ArrayBuffer; bank: Bank }) {
     try {
       const convertedStatement = await this.statementConverter.convert(
         data.bank,

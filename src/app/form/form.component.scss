@@ -30,3 +30,14 @@
     justify-content: center;
     font-weight: bold;
 }
+
+.json-input-section {
+    max-width: 100%;
+
+    .form-control {
+        font-family: monospace;
+        font-size: 0.875rem;
+        resize: vertical;
+        min-height: 300px;
+    }
+}

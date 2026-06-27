@@ -14,21 +14,37 @@
               </select>
             </div>
           </div>
-          <div class="card mt-3" style="border-style: dashed; box-shadow: none;">
-            <span class="material-symbols-outlined" style="font-size: 5rem;"> upload </span>
-            <div class="mt-2">Select your bank statements</div>
-            <div class="file-input row mt-3">
-              <div class="col-6 offset-3">
-                <input formControlName="bankStatementFile" type="file" class="mt-3 file" id="file"
-                  aria-label="Bank Statement File" placeholder="Bank Statement File"
-                  (change)="onFileSelected($event.target.files)" required>
-                <label for="file" type="button" class="btn btn-primary">SELECT</label>
+          
+          @if (!isTradeRepublic) {
+            <div class="card mt-3" style="border-style: dashed; box-shadow: none;">
+              <span class="material-symbols-outlined" style="font-size: 5rem;"> upload </span>
+              <div class="mt-2">Select your bank statements</div>
+              <div class="file-input row mt-3">
+                <div class="col-6 offset-3">
+                  <input formControlName="bankStatementFile" type="file" class="mt-3 file" id="file"
+                    aria-label="Bank Statement File" placeholder="Bank Statement File"
+                    (change)="onFileSelected($event.target.files)" required>
+                  <label for="file" type="button" class="btn btn-primary">SELECT</label>
+                </div>
               </div>
             </div>
-          </div>
+          }
+
+          @if (isTradeRepublic) {
+            <div class="card mt-3" style="box-shadow: none;">
+              <div class="row mt-3">
+                <div class="col-10 offset-1">
+                  <textarea formControlName="jsonInput" class="form-control" rows="15"
+                    placeholder='{ "items": [...] }'
+                    style="font-family: monospace;"></textarea>
+                  <label type="button" class="btn btn-primary mt-3" (click)="onSubmitJson()">CONVERT</label>
+                </div>
+              </div>
+            </div>
+          }
         </div>
       }
-      @if (shouldShowDropZone) {
+      @if (shouldShowDropZone && !isTradeRepublic) {
         <div class="drop-zone">
           <div class="card" style="border-style: dashed; box-shadow: none;">
             <span class="material-symbols-outlined" style="font-size: 5rem;"> place_item </span>

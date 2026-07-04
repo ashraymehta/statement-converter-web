@@ -8,6 +8,7 @@
     guessDateFormat,
     parseCellAsDate,
     parseCellAsNumber,
+    extractIndicator,
   } from '../lib/converter/index';
   import type { Bank, Transaction, RawTable, ColumnMapping, ColumnRole, AmountPattern, CellValue } from '../lib/converter/index';
   import { toasts } from '../stores/toast';
@@ -44,7 +45,11 @@
   let mapping = $state<ColumnMapping>(createEmptyMapping(columnCount));
   const categorical = rawTable ? detectCategoricalColumns(rawTable) : [];
   let normalized = $state<boolean[]>(Array(columnCount).fill(false));
-  let rawRows = $state<{ cells: WorkingCell[]; included: boolean }[]>(
+  // `embeddedIsDebit` preserves the direction extracted from an amount cell
+  // like "Dr.1,499.00" at normalisation time (see onRoleChange) — once the
+  // cell is overwritten with just the numeric magnitude for editing, that
+  // information would otherwise be lost before applyMapping could use it.
+  let rawRows = $state<{ cells: WorkingCell[]; included: boolean; embeddedIsDebit?: boolean | null }[]>(
     rawTable ? rawTable.rows.map((cells) => ({ cells: [...cells], included: true })) : [],
   );
 
@@ -93,12 +98,28 @@
 
   // ── Raw/mapping editing ────────────────────────────────────────────────
   function amountRoleOptions(): { value: ColumnRole; label: string }[] {
-    return mapping.pattern === 'signed'
-      ? [{ value: 'amount', label: 'Amount' }]
-      : [
-          { value: 'outflow', label: 'Outflow' },
-          { value: 'inflow', label: 'Inflow' },
-        ];
+    if (mapping.pattern === 'signed') {
+      return [{ value: 'amount', label: 'Amount' }];
+    }
+    if (mapping.pattern === 'indicator') {
+      // 'indicator' is optional here — leave it unassigned when the
+      // direction is embedded in the amount cell itself (e.g. "Dr.1,499.00").
+      return [
+        { value: 'amount', label: 'Amount' },
+        { value: 'indicator', label: 'Dr./Cr. column' },
+      ];
+    }
+    return [
+      { value: 'outflow', label: 'Outflow' },
+      { value: 'inflow', label: 'Inflow' },
+    ];
+  }
+
+  function roleValidForPattern(role: ColumnRole, pattern: AmountPattern): boolean {
+    if (role === 'date' || role === 'payee' || role === 'memo' || role === 'category') return true;
+    if (pattern === 'signed') return role === 'amount';
+    if (pattern === 'indicator') return role === 'amount' || role === 'indicator';
+    return role === 'outflow' || role === 'inflow';
   }
 
   function roleOptionsFor(): { value: ColumnRole | ''; label: string }[] {
@@ -145,8 +166,21 @@
       mapping.dateFormat = format;
       normalized[columnIndex] = true;
     } else if ((newRole === 'amount' || newRole === 'outflow' || newRole === 'inflow') && !normalized[columnIndex]) {
+      // For the 'indicator' pattern with no separate indicator column, the
+      // direction is embedded in this same cell (e.g. "Dr.1,499.00") —
+      // extract it now, before overwriting the cell with just the numeric
+      // magnitude, or that information is gone by the time applyMapping runs.
+      const isEmbeddedIndicator =
+        newRole === 'amount' && mapping.pattern === 'indicator' && !mapping.roles.includes('indicator');
+
       for (const row of rawRows) {
-        row.cells[columnIndex] = parseCellAsNumber(row.cells[columnIndex]);
+        if (isEmbeddedIndicator) {
+          const extracted = extractIndicator(cellText(row.cells[columnIndex]));
+          row.cells[columnIndex] = parseCellAsNumber(extracted.cleaned);
+          row.embeddedIsDebit = extracted.isDebit;
+        } else {
+          row.cells[columnIndex] = parseCellAsNumber(row.cells[columnIndex]);
+        }
       }
       normalized[columnIndex] = true;
     }
@@ -156,11 +190,7 @@
 
   function onPatternChange(newPattern: AmountPattern) {
     mapping.pattern = newPattern;
-    mapping.roles = mapping.roles.map((r) => {
-      if (newPattern === 'signed' && (r === 'outflow' || r === 'inflow')) return null;
-      if (newPattern === 'split' && r === 'amount') return null;
-      return r;
-    });
+    mapping.roles = mapping.roles.map((r) => (r && roleValidForPattern(r, newPattern) ? r : null));
     syncFromRawRows();
   }
 
@@ -179,8 +209,44 @@
       onchange([]);
       return;
     }
-    const includedRows = rawRows.filter((r) => r.included).map((r) => r.cells);
-    onchange(applyMapping({ headers: rawTable!.headers, rows: includedRows }, mapping));
+
+    const included = rawRows.filter((r) => r.included);
+    const amountCol = mapping.roles.indexOf('amount');
+    const isEmbeddedIndicator =
+      mapping.pattern === 'indicator' && amountCol !== -1 && !mapping.roles.includes('indicator');
+
+    if (isEmbeddedIndicator) {
+      // applyMapping's embedded-extraction would find nothing here — the
+      // cell was already normalised to a bare number (see onRoleChange) and
+      // the direction was preserved separately in `embeddedIsDebit`.
+      const dateCol = mapping.roles.indexOf('date');
+      const payeeCol = mapping.roles.indexOf('payee');
+      const memoCol = mapping.roles.indexOf('memo');
+      const categoryCol = mapping.roles.indexOf('category');
+
+      const transactions = included.flatMap((row) => {
+        const date = row.cells[dateCol];
+        if (!(date instanceof Date)) return [];
+        const amount = Math.abs(typeof row.cells[amountCol] === 'number' ? (row.cells[amountCol] as number) : 0);
+        const isOutflow = row.embeddedIsDebit ?? true;
+        const payee = payeeCol !== -1 ? cellText(row.cells[payeeCol]) : '';
+        const category = categoryCol !== -1 ? cellText(row.cells[categoryCol]) : '';
+        return [
+          {
+            Payee: payee,
+            Outflow: isOutflow ? amount : 0,
+            Inflow: isOutflow ? 0 : amount,
+            Date: date,
+            Memo: memoCol !== -1 ? cellText(row.cells[memoCol]) : payee,
+            Category: category || null,
+          },
+        ];
+      });
+      onchange(transactions);
+      return;
+    }
+
+    onchange(applyMapping({ headers: rawTable!.headers, rows: included.map((r) => r.cells) }, mapping));
   }
 
   function cellText(value: WorkingCell): string {
@@ -196,6 +262,22 @@
   function isOutflowSigned(value: WorkingCell): boolean {
     const n = typeof value === 'number' ? value : 0;
     return mapping.negativeIsOutflow ? n < 0 : n >= 0;
+  }
+
+  /** Direction for the 'amount'-role cell, accounting for the 'indicator'
+   *  pattern (where sign alone doesn't tell you the direction — a separate
+   *  or embedded Dr./Cr. signal does). */
+  function isAmountOutflow(row: { cells: WorkingCell[]; embeddedIsDebit?: boolean | null }, c: number): boolean {
+    if (mapping.pattern === 'indicator') {
+      const indicatorCol = mapping.roles.indexOf('indicator');
+      if (indicatorCol !== -1) {
+        const debitWords = (mapping.debitIndicatorValues ?? ['dr', 'debit']).map((w) => w.toLowerCase());
+        const text = cellText(row.cells[indicatorCol]).trim().toLowerCase().replace(/\.$/, '');
+        return debitWords.includes(text);
+      }
+      return row.embeddedIsDebit ?? true;
+    }
+    return isOutflowSigned(row.cells[c]);
   }
 
   // Svelte action: keeps a checkbox's indeterminate DOM property in sync
@@ -242,6 +324,15 @@
           onchange={() => onPatternChange('split')}
         />
         Separate money in / out
+      </label>
+      <label class="pattern-option">
+        <input
+          type="radio"
+          name="amount-pattern"
+          checked={mapping.pattern === 'indicator'}
+          onchange={() => onPatternChange('indicator')}
+        />
+        Amount + separate Dr./Cr. column
       </label>
       {#if mapping.pattern === 'signed'}
         <label class="pattern-option">
@@ -345,8 +436,8 @@
                     <input
                       type="number"
                       class="cell-input num-input mono"
-                      class:ink-rust={isOutflowSigned(row.cells[c])}
-                      class:ink-green={!isOutflowSigned(row.cells[c])}
+                      class:ink-rust={isAmountOutflow(row, c)}
+                      class:ink-green={!isAmountOutflow(row, c)}
                       step="0.01"
                       value={row.cells[c]}
                       oninput={(e) => {

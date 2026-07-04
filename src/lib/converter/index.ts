@@ -14,5 +14,6 @@ export {
     parseCellAsDate,
     parseCellAsNumber,
     AUTO_DATE_FORMAT,
+    extractIndicator,
 } from './generic';
 export type { RawTable, CellValue, ColumnMapping, ColumnRole, AmountPattern } from './generic';

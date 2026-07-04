@@ -4,6 +4,8 @@ import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { NumberUtil, extractIndicator } from './helpers/NumberUtil';
 import type { Transaction } from './models/Transaction';
 
+export { extractIndicator };
+
 dayjs.extend(customParseFormat);
 
 const numberUtil = new NumberUtil();

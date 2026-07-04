@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { parse, type Transaction } from './lib/converter/index';
+  import { detect, readGenericSheet, type Transaction, type RawTable } from './lib/converter/index';
   import type { Bank } from './lib/converter/index';
   import { toasts } from './stores/toast';
   import Dropzone from './components/Dropzone.svelte';
@@ -11,27 +11,42 @@
 
   let appState = $state<AppState>('idle');
   let transactions = $state<Transaction[]>([]);
+  let rawTable = $state<RawTable | null>(null);
   let currentBank = $state<Bank | null>(null);
   let parseError = $state<string | null>(null);
 
-  async function onFile(bank: Bank, file: File) {
+  async function onFile(file: File) {
     appState = 'parsing';
     parseError = null;
-    currentBank = bank;
+    currentBank = null;
+    rawTable = null;
+    transactions = [];
 
     try {
       const buffer = await file.arrayBuffer();
-      const result = await parse(bank, buffer);
-      if (result.length === 0) {
-        parseError = 'No transactions found in this file. Double-check you picked the right statement type.';
-        appState = 'idle';
+      const detected = await detect(buffer);
+
+      if (detected) {
+        currentBank = detected.bank;
+        transactions = detected.transactions;
+        appState = 'preview';
         return;
       }
-      transactions = result;
-      appState = 'preview';
+
+      // No known bank matched — fall back to letting the user map the
+      // columns themselves, as long as the file is at least tabular.
+      const table = readGenericSheet(buffer);
+      if (table) {
+        rawTable = table;
+        appState = 'preview';
+        return;
+      }
+
+      parseError = "This file doesn't look like a spreadsheet we can read. Double-check the format and try again.";
+      appState = 'idle';
     } catch (err) {
       console.error('Parse error:', err);
-      parseError = 'Couldn’t read this file. Check the format and statement type, then try again.';
+      parseError = 'Couldn’t read this file. Check the format and try again.';
       appState = 'idle';
       toasts.show(parseError, 'error');
     }
@@ -44,6 +59,7 @@
   function reset() {
     appState = 'idle';
     transactions = [];
+    rawTable = null;
     currentBank = null;
     parseError = null;
   }
@@ -68,6 +84,8 @@
           Ready
         {:else if appState === 'parsing'}
           Reading&hellip;
+        {:else if rawTable && transactions.length === 0}
+          Mapping columns&hellip;
         {:else}
           Reviewing {transactions.length} {transactions.length === 1 ? 'entry' : 'entries'}
         {/if}
@@ -76,13 +94,13 @@
   </header>
 
   <main class="main">
-    <div class="content">
+    <div class="content" class:content--wide={appState === 'preview' && !!rawTable}>
       {#if appState === 'idle'}
         <div class="intro">
           <h1 class="intro-title">Turn any statement into a clean ledger.</h1>
           <p class="intro-sub">
-            Parse, review, and edit every line before exporting to QIF or CSV.
-            Everything happens on your device &mdash; the file never leaves your browser.
+            Drop a file — we'll recognise the format automatically, or let you map its columns
+            if it's from a bank we don't know yet. Everything happens on your device.
           </p>
         </div>
         <Dropzone onfile={onFile} />
@@ -97,8 +115,12 @@
         </div>
 
       {:else if appState === 'preview'}
-        <PreviewTable {transactions} onchange={onTransactionsChange} />
-        <ExportBar {transactions} bank={currentBank!} onreset={reset} />
+        {#if rawTable}
+          <PreviewTable source={{ kind: 'raw', table: rawTable }} bank={null} onchange={onTransactionsChange} />
+        {:else}
+          <PreviewTable source={{ kind: 'known', transactions }} bank={currentBank} onchange={onTransactionsChange} />
+        {/if}
+        <ExportBar {transactions} bank={currentBank} onreset={reset} />
       {/if}
     </div>
   </main>
@@ -198,6 +220,13 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    transition: max-width 0.2s ease;
+  }
+
+  /* Unknown-format tables can have any number of columns — give them more
+     room than the fixed-width known-bank ledger needs. */
+  .content--wide {
+    max-width: 96rem;
   }
 
   .intro {

@@ -1,30 +1,71 @@
 <script lang="ts">
-  import type { Transaction } from '../lib/converter/index';
+  import {
+    BankLabels,
+    applyMapping,
+    createEmptyMapping,
+    isMappingComplete,
+    detectCategoricalColumns,
+    guessDateFormat,
+    parseCellAsDate,
+    parseCellAsNumber,
+  } from '../lib/converter/index';
+  import type { Bank, Transaction, RawTable, ColumnMapping, ColumnRole, AmountPattern, CellValue } from '../lib/converter/index';
+  import { toasts } from '../stores/toast';
+  import { tick } from 'svelte';
+
+  type PreviewSource = { kind: 'known'; transactions: Transaction[] } | { kind: 'raw'; table: RawTable };
 
   interface Props {
-    transactions: Transaction[];
+    source: PreviewSource;
+    bank: Bank | null;
     onchange: (transactions: Transaction[]) => void;
   }
 
-  let { transactions, onchange }: Props = $props();
+  let { source, bank, onchange }: Props = $props();
+
+  const isRaw = source.kind === 'raw';
+  const rawTable = source.kind === 'raw' ? source.table : null;
 
   type EditableRow = Transaction & { included: boolean };
 
-  // Make a local mutable copy so edits update independently.
-  // `included` is UI-only state — unchecked rows stay visible here but
-  // are filtered out before being reported upstream for conversion.
+  // ── Known-bank path: a transaction list already resolved by an adapter ────
   let rows = $state<EditableRow[]>(
-    transactions.map((t) => ({ ...t, Date: new Date(t.Date), included: true })),
+    source.kind === 'known' ? source.transactions.map((t) => ({ ...t, Date: new Date(t.Date), included: true })) : [],
   );
 
-  let includedCount = $derived(rows.filter((r) => r.included).length);
-  let allChecked = $derived(rows.length > 0 && includedCount === rows.length);
-  let someChecked = $derived(includedCount > 0 && includedCount < rows.length);
+  // ── Raw/mapping path: nothing recognised the file, so the user assigns
+  //    each column's role directly on the table headers. `rawRows` is a
+  //    working copy of the file's cells; once a column gets a role, its
+  //    cells are normalised in place (parsed once into a Date/number/string)
+  //    so it can be rendered and edited exactly like a known-bank column. ──
+  type WorkingCell = CellValue;
+  const columnCount = rawTable?.headers.length ?? 0;
 
+  let mapping = $state<ColumnMapping>(createEmptyMapping(columnCount));
+  const categorical = rawTable ? detectCategoricalColumns(rawTable) : [];
+  let normalized = $state<boolean[]>(Array(columnCount).fill(false));
+  let rawRows = $state<{ cells: WorkingCell[]; included: boolean }[]>(
+    rawTable ? rawTable.rows.map((cells) => ({ cells: [...cells], included: true })) : [],
+  );
+
+  const totalCount = $derived(isRaw ? rawRows.length : rows.length);
+  const includedCount = $derived(
+    isRaw ? rawRows.filter((r) => r.included).length : rows.filter((r) => r.included).length,
+  );
+  const allChecked = $derived(totalCount > 0 && includedCount === totalCount);
+  const someChecked = $derived(includedCount > 0 && includedCount < totalCount);
+  const countLabel = $derived(
+    totalCount === 0
+      ? '0 entries'
+      : includedCount !== totalCount
+        ? `${includedCount} of ${totalCount} ${totalCount === 1 ? 'entry' : 'entries'}`
+        : `${totalCount} ${totalCount === 1 ? 'entry' : 'entries'}`,
+  );
+  const mappingReady = $derived(isRaw && isMappingComplete(mapping));
+
+  // ── Known-bank editing ─────────────────────────────────────────────────
   function update() {
-    const includedTransactions = rows
-      .filter((r) => r.included)
-      .map(({ included, ...transaction }) => transaction);
+    const includedTransactions = rows.filter((r) => r.included).map(({ included, ...transaction }) => transaction);
     onchange(includedTransactions);
   }
 
@@ -50,6 +91,113 @@
     return isNaN(d.getTime()) ? new Date() : d;
   }
 
+  // ── Raw/mapping editing ────────────────────────────────────────────────
+  function amountRoleOptions(): { value: ColumnRole; label: string }[] {
+    return mapping.pattern === 'signed'
+      ? [{ value: 'amount', label: 'Amount' }]
+      : [
+          { value: 'outflow', label: 'Outflow' },
+          { value: 'inflow', label: 'Inflow' },
+        ];
+  }
+
+  function roleOptionsFor(): { value: ColumnRole | ''; label: string }[] {
+    return [
+      { value: '', label: '— Ignore —' },
+      { value: 'date', label: 'Date' },
+      { value: 'payee', label: 'Payee' },
+      { value: 'memo', label: 'Memo' },
+      { value: 'category', label: 'Category' },
+      ...amountRoleOptions(),
+    ];
+  }
+
+  async function onRoleChange(columnIndex: number, value: string) {
+    const newRole = (value || null) as ColumnRole | null;
+
+    // Roles are unique — assigning one here clears it from wherever it was.
+    mapping.roles = mapping.roles.map((r, i) => {
+      if (i === columnIndex) return newRole;
+      return r === newRole && newRole !== null ? null : r;
+    });
+
+    if (newRole === 'date' && !normalized[columnIndex]) {
+      const format = guessDateFormat(rawTable!, columnIndex);
+      const parsed = rawRows.map((row) => parseCellAsDate(row.cells[columnIndex], format));
+      const successCount = parsed.filter((d) => d !== null).length;
+
+      if (rawRows.length > 0 && successCount === 0) {
+        // Couldn't parse a single date in this column — revert rather than
+        // leave it mapped-but-empty, and tell the user why. Awaiting a tick
+        // lets Svelte flush the DOM for the interim 'date' selection first,
+        // so the subsequent revert is a genuinely new update the <select>
+        // picks up (rather than two writes collapsing into one before paint).
+        await tick();
+        mapping.roles = mapping.roles.map((r, i) => (i === columnIndex ? null : r));
+        toasts.show('Couldn’t read dates in that column — check the file’s date format.', 'error');
+        syncFromRawRows();
+        return;
+      }
+
+      rawRows.forEach((row, i) => {
+        row.cells[columnIndex] = parsed[i];
+      });
+      mapping.dateFormat = format;
+      normalized[columnIndex] = true;
+    } else if ((newRole === 'amount' || newRole === 'outflow' || newRole === 'inflow') && !normalized[columnIndex]) {
+      for (const row of rawRows) {
+        row.cells[columnIndex] = parseCellAsNumber(row.cells[columnIndex]);
+      }
+      normalized[columnIndex] = true;
+    }
+
+    syncFromRawRows();
+  }
+
+  function onPatternChange(newPattern: AmountPattern) {
+    mapping.pattern = newPattern;
+    mapping.roles = mapping.roles.map((r) => {
+      if (newPattern === 'signed' && (r === 'outflow' || r === 'inflow')) return null;
+      if (newPattern === 'split' && r === 'amount') return null;
+      return r;
+    });
+    syncFromRawRows();
+  }
+
+  function toggleRawRow(i: number) {
+    rawRows[i].included = !rawRows[i].included;
+    syncFromRawRows();
+  }
+
+  function toggleAllRaw(value: boolean) {
+    rawRows = rawRows.map((r) => ({ ...r, included: value }));
+    syncFromRawRows();
+  }
+
+  function syncFromRawRows() {
+    if (!mappingReady) {
+      onchange([]);
+      return;
+    }
+    const includedRows = rawRows.filter((r) => r.included).map((r) => r.cells);
+    onchange(applyMapping({ headers: rawTable!.headers, rows: includedRows }, mapping));
+  }
+
+  function cellText(value: WorkingCell): string {
+    if (value === null || value === undefined) return '';
+    if (value instanceof Date) return value.toLocaleDateString();
+    return String(value);
+  }
+
+  function dateInputValue(value: WorkingCell): string {
+    return value instanceof Date ? formatDate(value) : '';
+  }
+
+  function isOutflowSigned(value: WorkingCell): boolean {
+    const n = typeof value === 'number' ? value : 0;
+    return mapping.negativeIsOutflow ? n < 0 : n >= 0;
+  }
+
   // Svelte action: keeps a checkbox's indeterminate DOM property in sync
   function indeterminate(node: HTMLInputElement, value: boolean) {
     node.indeterminate = value;
@@ -64,114 +212,243 @@
 <div class="preview-wrapper">
   <div class="preview-header">
     <span class="eyebrow">
-      Ledger &middot;
-      {#if rows.length > 0 && includedCount !== rows.length}
-        {includedCount} of {rows.length} {rows.length === 1 ? 'entry' : 'entries'}
+      {#if bank}
+        Ledger &middot; {BankLabels[bank]} &middot; {countLabel}
+      {:else if isRaw && !mappingReady}
+        Ledger &middot; assign columns below to build your ledger
       {:else}
-        {rows.length} {rows.length === 1 ? 'entry' : 'entries'}
+        Ledger &middot; custom mapping &middot; {countLabel}
       {/if}
     </span>
   </div>
+
+  {#if isRaw}
+    <div class="pattern-toggle">
+      <span class="eyebrow">Amounts</span>
+      <label class="pattern-option">
+        <input
+          type="radio"
+          name="amount-pattern"
+          checked={mapping.pattern === 'signed'}
+          onchange={() => onPatternChange('signed')}
+        />
+        One amount column
+      </label>
+      <label class="pattern-option">
+        <input
+          type="radio"
+          name="amount-pattern"
+          checked={mapping.pattern === 'split'}
+          onchange={() => onPatternChange('split')}
+        />
+        Separate money in / out
+      </label>
+      {#if mapping.pattern === 'signed'}
+        <label class="pattern-option">
+          <input
+            type="checkbox"
+            checked={mapping.negativeIsOutflow}
+            onchange={(e) => {
+              mapping.negativeIsOutflow = (e.target as HTMLInputElement).checked;
+              syncFromRawRows();
+            }}
+          />
+          Negative values are money out
+        </label>
+      {/if}
+    </div>
+  {/if}
 
   <div class="table-scroll">
     <table class="preview-table">
       <thead>
         <tr>
           <th class="checkbox-col">
-            <input
-              type="checkbox"
-              class="row-toggle"
-              checked={allChecked}
-              use:indeterminate={someChecked}
-              onchange={(e) => toggleAll((e.target as HTMLInputElement).checked)}
-              aria-label="Include all entries in conversion"
-            />
-          </th>
-          <th>Date</th>
-          <th>Payee</th>
-          <th>Memo</th>
-          <th class="num-col">Outflow</th>
-          <th class="num-col">Inflow</th>
-          <th>Category</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each rows as row, i (i)}
-          <tr class="ledger-row" class:ledger-row--excluded={!row.included} style="--row-index: {i}">
-            <td class="checkbox-col">
+            {#if isRaw}
               <input
                 type="checkbox"
                 class="row-toggle"
-                checked={row.included}
-                onchange={() => toggleRow(i)}
-                aria-label="Include entry {i + 1} in conversion"
+                checked={allChecked}
+                use:indeterminate={someChecked}
+                onchange={(e) => toggleAllRaw((e.target as HTMLInputElement).checked)}
+                aria-label="Include all entries in conversion"
               />
-            </td>
-            <td>
+            {:else}
               <input
-                type="date"
-                class="cell-input mono"
-                value={formatDate(row.Date)}
-                onchange={(e) => {
-                  rows[i].Date = parseDate((e.target as HTMLInputElement).value);
-                  update();
-                }}
+                type="checkbox"
+                class="row-toggle"
+                checked={allChecked}
+                use:indeterminate={someChecked}
+                onchange={(e) => toggleAll((e.target as HTMLInputElement).checked)}
+                aria-label="Include all entries in conversion"
               />
-            </td>
-            <td>
-              <input
-                type="text"
-                class="cell-input"
-                bind:value={rows[i].Payee}
-                oninput={update}
-                placeholder="Payee"
-              />
-            </td>
-            <td>
-              <input
-                type="text"
-                class="cell-input"
-                bind:value={rows[i].Memo}
-                oninput={update}
-                placeholder="Memo"
-              />
-            </td>
-            <td>
-              <input
-                type="number"
-                class="cell-input num-input mono"
-                class:ink-rust={row.Outflow > 0}
-                min="0"
-                step="0.01"
-                bind:value={rows[i].Outflow}
-                oninput={update}
-              />
-            </td>
-            <td>
-              <input
-                type="number"
-                class="cell-input num-input mono"
-                class:ink-green={row.Inflow > 0}
-                min="0"
-                step="0.01"
-                bind:value={rows[i].Inflow}
-                oninput={update}
-              />
-            </td>
-            <td>
-              <input
-                type="text"
-                class="cell-input"
-                value={row.Category ?? ''}
-                oninput={(e) => {
-                  rows[i].Category = (e.target as HTMLInputElement).value || null;
-                  update();
-                }}
-                placeholder="Category"
-              />
-            </td>
-          </tr>
-        {/each}
+            {/if}
+          </th>
+
+          {#if isRaw}
+            {#each rawTable!.headers as header, c}
+              <th class="mapped-header" class:mapped-header--assigned={mapping.roles[c] !== null}>
+                <div class="header-label">{header}</div>
+                <select
+                  class="role-select"
+                  value={mapping.roles[c] ?? ''}
+                  onchange={(e) => onRoleChange(c, (e.target as HTMLSelectElement).value)}
+                >
+                  {#each roleOptionsFor() as opt}
+                    <option value={opt.value}>{opt.label}</option>
+                  {/each}
+                </select>
+              </th>
+            {/each}
+          {:else}
+            <th>Date</th>
+            <th>Payee</th>
+            <th>Memo</th>
+            <th class="num-col">Outflow</th>
+            <th class="num-col">Inflow</th>
+            <th>Category</th>
+          {/if}
+        </tr>
+      </thead>
+      <tbody>
+        {#if isRaw}
+          {#each rawRows as row, i (i)}
+            <tr class="ledger-row" class:ledger-row--excluded={!row.included} style="--row-index: {i}">
+              <td class="checkbox-col">
+                <input
+                  type="checkbox"
+                  class="row-toggle"
+                  checked={row.included}
+                  onchange={() => toggleRawRow(i)}
+                  aria-label="Include entry {i + 1} in conversion"
+                />
+              </td>
+              {#each rawTable!.headers as _, c}
+                <td>
+                  {#if mapping.roles[c] === null}
+                    {#if categorical[c]}
+                      <span class="pill">{cellText(row.cells[c])}</span>
+                    {:else}
+                      <span class="raw-text mono">{cellText(row.cells[c])}</span>
+                    {/if}
+                  {:else if mapping.roles[c] === 'date'}
+                    <input
+                      type="date"
+                      class="cell-input mono"
+                      value={dateInputValue(row.cells[c])}
+                      onchange={(e) => {
+                        row.cells[c] = parseDate((e.target as HTMLInputElement).value);
+                        syncFromRawRows();
+                      }}
+                    />
+                  {:else if mapping.roles[c] === 'amount'}
+                    <input
+                      type="number"
+                      class="cell-input num-input mono"
+                      class:ink-rust={isOutflowSigned(row.cells[c])}
+                      class:ink-green={!isOutflowSigned(row.cells[c])}
+                      step="0.01"
+                      value={row.cells[c]}
+                      oninput={(e) => {
+                        row.cells[c] = Number((e.target as HTMLInputElement).value);
+                        syncFromRawRows();
+                      }}
+                    />
+                  {:else if mapping.roles[c] === 'outflow' || mapping.roles[c] === 'inflow'}
+                    <input
+                      type="number"
+                      class="cell-input num-input mono"
+                      class:ink-rust={mapping.roles[c] === 'outflow'}
+                      class:ink-green={mapping.roles[c] === 'inflow'}
+                      min="0"
+                      step="0.01"
+                      value={row.cells[c]}
+                      oninput={(e) => {
+                        row.cells[c] = Number((e.target as HTMLInputElement).value);
+                        syncFromRawRows();
+                      }}
+                    />
+                  {:else}
+                    <input
+                      type="text"
+                      class="cell-input"
+                      value={cellText(row.cells[c])}
+                      oninput={(e) => {
+                        row.cells[c] = (e.target as HTMLInputElement).value;
+                        syncFromRawRows();
+                      }}
+                    />
+                  {/if}
+                </td>
+              {/each}
+            </tr>
+          {/each}
+        {:else}
+          {#each rows as row, i (i)}
+            <tr class="ledger-row" class:ledger-row--excluded={!row.included} style="--row-index: {i}">
+              <td class="checkbox-col">
+                <input
+                  type="checkbox"
+                  class="row-toggle"
+                  checked={row.included}
+                  onchange={() => toggleRow(i)}
+                  aria-label="Include entry {i + 1} in conversion"
+                />
+              </td>
+              <td>
+                <input
+                  type="date"
+                  class="cell-input mono"
+                  value={formatDate(row.Date)}
+                  onchange={(e) => {
+                    rows[i].Date = parseDate((e.target as HTMLInputElement).value);
+                    update();
+                  }}
+                />
+              </td>
+              <td>
+                <input type="text" class="cell-input" bind:value={rows[i].Payee} oninput={update} placeholder="Payee" />
+              </td>
+              <td>
+                <input type="text" class="cell-input" bind:value={rows[i].Memo} oninput={update} placeholder="Memo" />
+              </td>
+              <td>
+                <input
+                  type="number"
+                  class="cell-input num-input mono"
+                  class:ink-rust={row.Outflow > 0}
+                  min="0"
+                  step="0.01"
+                  bind:value={rows[i].Outflow}
+                  oninput={update}
+                />
+              </td>
+              <td>
+                <input
+                  type="number"
+                  class="cell-input num-input mono"
+                  class:ink-green={row.Inflow > 0}
+                  min="0"
+                  step="0.01"
+                  bind:value={rows[i].Inflow}
+                  oninput={update}
+                />
+              </td>
+              <td>
+                <input
+                  type="text"
+                  class="cell-input"
+                  value={row.Category ?? ''}
+                  oninput={(e) => {
+                    rows[i].Category = (e.target as HTMLInputElement).value || null;
+                    update();
+                  }}
+                  placeholder="Category"
+                />
+              </td>
+            </tr>
+          {/each}
+        {/if}
       </tbody>
     </table>
   </div>
@@ -191,6 +468,26 @@
   .preview-header {
     display: flex;
     align-items: center;
+  }
+
+  .pattern-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 0.75rem 1rem;
+    background: var(--color-surface-alt);
+    border: 1px solid var(--color-rule);
+    border-radius: var(--radius);
+  }
+
+  .pattern-option {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: var(--color-ink);
+    cursor: pointer;
   }
 
   .table-scroll {
@@ -315,5 +612,76 @@
 
   .ink-green {
     color: var(--color-green-dark);
+  }
+
+  /* ── Unmapped raw cell display ─────────────────────────────────────── */
+  .pill {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    background: var(--color-surface-alt);
+    color: var(--color-ink-muted);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+
+  .raw-text {
+    color: var(--color-ink-muted);
+    font-size: 0.82rem;
+    padding: 0 0.4rem;
+  }
+
+  /* ── Interactive mapping headers ───────────────────────────────────── */
+  .mapped-header {
+    vertical-align: top;
+    padding: 0.5rem 0.6rem;
+  }
+
+  .header-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--color-ink-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 10rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .mapped-header--assigned .header-label {
+    color: var(--color-green-dark);
+    font-weight: 600;
+  }
+
+  .role-select {
+    width: 100%;
+    padding: 0.3rem 1.4rem 0.3rem 0.5rem;
+    border: 1px solid var(--color-rule-strong);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-surface);
+    color: var(--color-ink-muted);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 500;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%235b6b60' d='M2 5l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.4rem center;
+    background-size: 0.7em;
+    cursor: pointer;
+  }
+
+  .mapped-header--assigned .role-select {
+    border-color: var(--color-green);
+    color: var(--color-green-dark);
+  }
+
+  .role-select:focus-visible {
+    border-color: var(--color-green);
   }
 </style>

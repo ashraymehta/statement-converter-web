@@ -6,7 +6,7 @@
 
   interface Props {
     transactions: Transaction[];
-    bank: Bank;
+    bank: Bank | null;
     onreset: () => void;
   }
 
@@ -31,7 +31,7 @@
         ext = 'csv';
       }
 
-      const filename = `${bank}-converted-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.${ext}`;
+      const filename = `${bank ?? 'statement'}-converted-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.${ext}`;
       const blob = new Blob([content], { type: mime });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

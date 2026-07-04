@@ -1,26 +1,18 @@
 <script lang="ts">
-  import { Bank, BankLabels } from '../lib/converter/index';
-
   interface Props {
-    onfile: (bank: Bank, file: File) => void;
+    onfile: (file: File) => void;
   }
 
   let { onfile }: Props = $props();
 
-  // Banks sorted alphabetically by label
-  const bankOptions = Object.values(Bank)
-    .map((value) => ({ value, label: BankLabels[value] }))
-    .sort((a, b) => a.label.localeCompare(b.label));
-
   const acceptedFormats = ['.xls', '.xlsx', '.csv', '.json', '.txt'];
 
-  let selectedBank = $state<Bank>(Bank.ABN);
   let dragging = $state(false);
   let fileInput = $state<HTMLInputElement | undefined>(undefined);
 
   function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
-    onfile(selectedBank, files[0]);
+    onfile(files[0]);
   }
 
   function onDragover(e: DragEvent) {
@@ -51,15 +43,6 @@
 <div class="dropzone-card">
   <span class="stamp" aria-hidden="true">Private<br />Local only</span>
 
-  <div class="field">
-    <label class="eyebrow field-label" for="bank-select">Statement from</label>
-    <select id="bank-select" class="select" bind:value={selectedBank}>
-      {#each bankOptions as opt}
-        <option value={opt.value}>{opt.label}</option>
-      {/each}
-    </select>
-  </div>
-
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="drop-area"
@@ -81,6 +64,7 @@
         Drag your statement here, or <strong>click to browse</strong>
       {/if}
     </p>
+    <p class="drop-note">We'll figure out the format automatically.</p>
     <div class="format-chips">
       {#each acceptedFormats as fmt}
         <span class="format-chip mono">{fmt}</span>
@@ -129,32 +113,6 @@
     pointer-events: none;
   }
 
-  .field-label {
-    display: block;
-    margin-bottom: 0.5rem;
-  }
-
-  .select {
-    width: 100%;
-    padding: 0.6rem 0.75rem;
-    border: 1px solid var(--color-rule);
-    border-radius: var(--radius);
-    background-color: var(--color-paper);
-    color: var(--color-ink);
-    font-family: var(--font-body);
-    font-size: 1rem;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%235b6b60' d='M2 5l6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.75rem center;
-    background-size: 0.9em;
-    cursor: pointer;
-  }
-
-  .select:focus-visible {
-    border-color: var(--color-green);
-  }
-
   .drop-area {
     border: 1.5px dashed var(--color-rule-strong);
     border-radius: var(--radius);
@@ -198,6 +156,12 @@
     margin: 0;
     color: var(--color-ink);
     font-size: 0.95rem;
+  }
+
+  .drop-note {
+    margin: 0;
+    color: var(--color-ink-muted);
+    font-size: 0.8rem;
   }
 
   .format-chips {

@@ -8,30 +8,33 @@
 
   let { transactions, onchange }: Props = $props();
 
-  // Make a local mutable copy so edits update independently
-  let rows = $state(transactions.map((t) => ({ ...t, Date: new Date(t.Date) })));
+  type EditableRow = Transaction & { included: boolean };
+
+  // Make a local mutable copy so edits update independently.
+  // `included` is UI-only state — unchecked rows stay visible here but
+  // are filtered out before being reported upstream for conversion.
+  let rows = $state<EditableRow[]>(
+    transactions.map((t) => ({ ...t, Date: new Date(t.Date), included: true })),
+  );
+
+  let includedCount = $derived(rows.filter((r) => r.included).length);
+  let allChecked = $derived(rows.length > 0 && includedCount === rows.length);
+  let someChecked = $derived(includedCount > 0 && includedCount < rows.length);
 
   function update() {
-    onchange(rows.map((r) => ({ ...r })));
+    const includedTransactions = rows
+      .filter((r) => r.included)
+      .map(({ included, ...transaction }) => transaction);
+    onchange(includedTransactions);
   }
 
-  function deleteRow(index: number) {
-    rows = rows.filter((_, i) => i !== index);
+  function toggleRow(i: number) {
+    rows[i].included = !rows[i].included;
     update();
   }
 
-  function addRow() {
-    rows = [
-      ...rows,
-      {
-        Payee: '',
-        Outflow: 0,
-        Inflow: 0,
-        Date: new Date(),
-        Memo: '',
-        Category: null,
-      },
-    ];
+  function toggleAll(value: boolean) {
+    rows = rows.map((r) => ({ ...r, included: value }));
     update();
   }
 
@@ -46,30 +49,64 @@
     const d = new Date(s);
     return isNaN(d.getTime()) ? new Date() : d;
   }
+
+  // Svelte action: keeps a checkbox's indeterminate DOM property in sync
+  function indeterminate(node: HTMLInputElement, value: boolean) {
+    node.indeterminate = value;
+    return {
+      update(value: boolean) {
+        node.indeterminate = value;
+      },
+    };
+  }
 </script>
 
 <div class="preview-wrapper">
   <div class="preview-header">
-    <span class="eyebrow">Ledger &middot; {rows.length} {rows.length === 1 ? 'entry' : 'entries'}</span>
-    <button class="btn-add" onclick={addRow}>+ Add entry</button>
+    <span class="eyebrow">
+      Ledger &middot;
+      {#if rows.length > 0 && includedCount !== rows.length}
+        {includedCount} of {rows.length} {rows.length === 1 ? 'entry' : 'entries'}
+      {:else}
+        {rows.length} {rows.length === 1 ? 'entry' : 'entries'}
+      {/if}
+    </span>
   </div>
 
   <div class="table-scroll">
     <table class="preview-table">
       <thead>
         <tr>
+          <th class="checkbox-col">
+            <input
+              type="checkbox"
+              class="row-toggle"
+              checked={allChecked}
+              use:indeterminate={someChecked}
+              onchange={(e) => toggleAll((e.target as HTMLInputElement).checked)}
+              aria-label="Include all entries in conversion"
+            />
+          </th>
           <th>Date</th>
           <th>Payee</th>
           <th>Memo</th>
           <th class="num-col">Outflow</th>
           <th class="num-col">Inflow</th>
           <th>Category</th>
-          <th class="action-col" aria-label="Actions"></th>
         </tr>
       </thead>
       <tbody>
         {#each rows as row, i (i)}
-          <tr class="ledger-row" style="--row-index: {i}">
+          <tr class="ledger-row" class:ledger-row--excluded={!row.included} style="--row-index: {i}">
+            <td class="checkbox-col">
+              <input
+                type="checkbox"
+                class="row-toggle"
+                checked={row.included}
+                onchange={() => toggleRow(i)}
+                aria-label="Include entry {i + 1} in conversion"
+              />
+            </td>
             <td>
               <input
                 type="date"
@@ -133,14 +170,6 @@
                 placeholder="Category"
               />
             </td>
-            <td>
-              <button
-                class="btn-delete"
-                onclick={() => deleteRow(i)}
-                aria-label="Remove entry {i + 1}"
-                title="Remove entry"
-              >&times;</button>
-            </td>
           </tr>
         {/each}
       </tbody>
@@ -162,8 +191,6 @@
   .preview-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
   }
 
   .table-scroll {
@@ -172,10 +199,32 @@
     border-radius: var(--radius);
   }
 
+  /* Sheet-like grid — full cell borders, no zebra striping */
   .preview-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.875rem;
+  }
+
+  .preview-table th,
+  .preview-table td {
+    border: 1px solid var(--color-rule);
+  }
+
+  .preview-table thead th {
+    border-bottom: 2px solid var(--color-rule-strong);
+  }
+
+  .preview-table tr:first-child td {
+    border-top: none;
+  }
+
+  .table-scroll table tr :is(th, td):first-child {
+    border-left: none;
+  }
+
+  .table-scroll table tr :is(th, td):last-child {
+    border-right: none;
   }
 
   .preview-table th {
@@ -188,27 +237,20 @@
     letter-spacing: 0.07em;
     padding: 0.65rem 0.75rem;
     text-align: left;
-    border-bottom: 2px solid var(--color-rule-strong);
     white-space: nowrap;
   }
 
   .preview-table td {
     padding: 0.3rem 0.4rem;
-    border-bottom: 1px solid var(--color-rule);
     vertical-align: middle;
-  }
-
-  .preview-table tr:last-child td {
-    border-bottom: none;
-  }
-
-  /* Alternating rows, subtle parchment tint */
-  .ledger-row:nth-child(even) td {
-    background: var(--color-paper);
   }
 
   .ledger-row:hover td {
     background: var(--color-surface-alt);
+  }
+
+  .ledger-row--excluded {
+    opacity: 0.5;
   }
 
   .ledger-row {
@@ -225,8 +267,17 @@
     text-align: right;
   }
 
-  .action-col {
+  .checkbox-col {
     width: 2.5rem;
+    text-align: center;
+  }
+
+  .row-toggle {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--color-green);
+    cursor: pointer;
+    vertical-align: middle;
   }
 
   .cell-input {
@@ -240,6 +291,11 @@
     font-family: inherit;
     min-width: 6rem;
     box-sizing: border-box;
+  }
+
+  /* Hide the native calendar picker glyph while keeping the field functional */
+  .cell-input[type='date']::-webkit-calendar-picker-indicator {
+    display: none;
   }
 
   .cell-input:focus-visible {
@@ -259,41 +315,5 @@
 
   .ink-green {
     color: var(--color-green-dark);
-  }
-
-  .btn-delete {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--color-rust);
-    font-size: 1.1rem;
-    padding: 0.1rem 0.3rem;
-    border-radius: var(--radius-sm);
-    line-height: 1;
-    opacity: 0.55;
-  }
-
-  .btn-delete:hover {
-    opacity: 1;
-    background: var(--color-rust-tint);
-  }
-
-  .btn-add {
-    background: none;
-    border: 1px solid var(--color-rule);
-    border-radius: var(--radius);
-    color: var(--color-ink-muted);
-    cursor: pointer;
-    padding: 0.35rem 0.85rem;
-    font-family: var(--font-body);
-    font-size: 0.85rem;
-    font-weight: 500;
-    transition: border-color 0.15s, color 0.15s;
-    white-space: nowrap;
-  }
-
-  .btn-add:hover {
-    border-color: var(--color-green);
-    color: var(--color-green);
   }
 </style>

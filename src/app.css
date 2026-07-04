@@ -1,8 +1,7 @@
 /* ────────────────────────────────────────────────────────────
-   Fonts — Space Grotesk (display), IBM Plex Sans (body/UI),
-   IBM Plex Mono (data, amounts, structural labels)
+   Fonts — IBM Plex Mono, used throughout for a spreadsheet/ledger feel
 ────────────────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
 /* ────────────────────────────────────────────────────────────
    Design tokens — "ledger" system
@@ -10,9 +9,9 @@
    debits (a nod to the red ink accountants use for outflows).
 ────────────────────────────────────────────────────────────── */
 :root {
-  --font-display: 'Space Grotesk', ui-sans-serif, sans-serif;
-  --font-body:    'IBM Plex Sans', ui-sans-serif, sans-serif;
   --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+  --font-display: var(--font-mono);
+  --font-body:    var(--font-mono);
 
   /* Paper & surfaces */
   --color-paper:      #f7f1e4;

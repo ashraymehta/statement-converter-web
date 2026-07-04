@@ -75,7 +75,12 @@
     <button class="btn btn--ghost" onclick={onreset}>
       New statement
     </button>
-    <button class="btn btn--primary" onclick={download}>
+    <button
+      class="btn btn--primary"
+      onclick={download}
+      disabled={transactions.length === 0}
+      title={transactions.length === 0 ? 'Select at least one entry to export' : undefined}
+    >
       Download <span class="mono">.{format}</span>
     </button>
   </div>
@@ -160,6 +165,18 @@
   .btn--primary:hover {
     background: var(--color-green-dark);
     border-color: var(--color-green-dark);
+  }
+
+  .btn--primary:disabled {
+    background: var(--color-rule-strong);
+    border-color: var(--color-rule-strong);
+    color: var(--color-ink-muted);
+    cursor: not-allowed;
+  }
+
+  .btn--primary:disabled:hover {
+    background: var(--color-rule-strong);
+    border-color: var(--color-rule-strong);
   }
 
   .btn--ghost {

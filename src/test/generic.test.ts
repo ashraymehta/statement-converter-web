@@ -128,6 +128,79 @@ describe('applyMapping — split outflow/inflow pattern', () => {
     });
 });
 
+describe('applyMapping — indicator pattern (amount + direction column)', () => {
+    it('reads direction from a separate indicator column', () => {
+        const table: RawTable = {
+            headers: ['Date', 'Payee', 'Amount', 'CR/DR'],
+            rows: [
+                ['2024-06-01', 'Salary', '11,225.00', 'CR'],
+                ['2024-06-05', 'Rent', '5,000.00', 'DR'],
+                ['2024-06-10', 'Refund', '250.00', 'Cr'],
+            ],
+        };
+        const mapping: ColumnMapping = {
+            pattern: 'indicator',
+            roles: ['date', 'payee', 'amount', 'indicator'],
+            negativeIsOutflow: true,
+            dateFormat: 'YYYY-MM-DD',
+        };
+
+        const transactions = applyMapping(table, mapping);
+        expect(transactions).toHaveLength(3);
+        expect(transactions[0]).toMatchObject({ Inflow: 11225, Outflow: 0 });
+        expect(transactions[1]).toMatchObject({ Inflow: 0, Outflow: 5000 });
+        expect(transactions[2]).toMatchObject({ Inflow: 250, Outflow: 0 });
+    });
+
+    it('supports non-Dr/Cr indicator conventions via debitIndicatorValues (e.g. Wise OUT/IN)', () => {
+        const table: RawTable = {
+            headers: ['Created on', 'Target name', 'Amount', 'Direction'],
+            rows: [
+                ['2024-06-01', 'Alice', '120.00', 'OUT'],
+                ['2024-06-05', 'Bob', '250.00', 'IN'],
+            ],
+        };
+        const mapping: ColumnMapping = {
+            pattern: 'indicator',
+            roles: ['date', 'payee', 'amount', 'indicator'],
+            negativeIsOutflow: true,
+            debitIndicatorValues: ['out'],
+            dateFormat: 'YYYY-MM-DD',
+        };
+
+        const transactions = applyMapping(table, mapping);
+        expect(transactions[0]).toMatchObject({ Outflow: 120, Inflow: 0 });
+        expect(transactions[1]).toMatchObject({ Inflow: 250, Outflow: 0 });
+    });
+
+    it('extracts an indicator embedded in the same cell as the amount', () => {
+        const table: RawTable = {
+            headers: ['Date', 'Details', 'Amount'],
+            rows: [
+                ['2024-06-01', 'Shopping', 'Dr.1,499.00'],
+                ['2024-06-05', 'Cashback', 'CR150.00'],
+            ],
+        };
+        const mapping: ColumnMapping = {
+            pattern: 'indicator',
+            roles: ['date', 'payee', 'amount'], // no separate 'indicator' column mapped
+            negativeIsOutflow: true,
+            dateFormat: 'YYYY-MM-DD',
+        };
+
+        const transactions = applyMapping(table, mapping);
+        expect(transactions).toHaveLength(2);
+        expect(transactions[0]).toMatchObject({ Outflow: 1499, Inflow: 0 });
+        expect(transactions[1]).toMatchObject({ Inflow: 150, Outflow: 0 });
+    });
+
+    it('is complete once date and amount are mapped (indicator column is optional)', () => {
+        const empty = createEmptyMapping(3);
+        const mapping: ColumnMapping = { ...empty, pattern: 'indicator', roles: ['date', null, 'amount'] };
+        expect(isMappingComplete(mapping)).toBe(true);
+    });
+});
+
 describe('guessDateFormat', () => {
     it('guesses ISO format for YYYY-MM-DD columns', () => {
         const table = readGenericSheet(fixture('GenericSignedAmountStatement.csv'))!;

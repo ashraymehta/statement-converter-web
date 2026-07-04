@@ -1,8 +1,9 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, it, expect } from 'vitest';
+import * as XLSX from 'xlsx';
 import { applyMapping } from '../lib/converter/generic';
-import { resolvePresetMapping, BANK_PRESETS } from '../lib/converter/presets';
+import { resolvePresetMapping, BANK_PRESETS, type BankPreset } from '../lib/converter/presets';
 import { Bank } from '../lib/converter/models/Bank';
 import { expectValidTransactions } from './helpers';
 
@@ -10,6 +11,13 @@ const fixture = (name: string): ArrayBuffer => {
     const buf = readFileSync(join(__dirname, 'fixtures', name));
     return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
 };
+
+function makeSheet(rows: (string | number)[][]): ArrayBuffer {
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
+}
 
 /** Resolves and applies whichever preset for `bank` matches the fixture (trying each candidate layout in order). */
 function parseWithPresets(bank: Bank, buffer: ArrayBuffer) {
@@ -115,5 +123,67 @@ describe('presets — value-level regression coverage', () => {
         const transactions = applyMapping(table, { ...mapping, roles: [...mapping.roles] });
         expectValidTransactions(transactions);
         expect(transactions[0].Inflow).toBe(11225);
+    });
+});
+
+describe('resolvePresetMapping — approximate header fallback', () => {
+    it('matches a simpler/shorter header when no exact alias matches (e.g. "Transaction Date" -> "Date")', () => {
+        const sheet = makeSheet([
+            ['Date', 'Payee', 'Amount'],
+            ['2024-06-01', 'Salary', '100.00'],
+        ]);
+        const preset: BankPreset = {
+            bank: Bank.Axis, // arbitrary — isolating just the header-resolution behavior
+            dateHeaderAliases: ['Transaction Date'], // not present verbatim in the sheet
+            dateFormat: 'YYYY-MM-DD',
+            payeeHeaderAliases: ['Payee'],
+            amountPattern: 'signed',
+            amountHeaderAliases: ['Amount'],
+        };
+
+        const resolved = resolvePresetMapping(sheet, preset);
+        expect(resolved).not.toBeNull();
+        const transactions = applyMapping(resolved!.table, resolved!.mapping);
+        expectValidTransactions(transactions);
+        expect(transactions[0]).toMatchObject({ Payee: 'Salary', Inflow: 100, Outflow: 0 });
+    });
+
+    it('regression: does not match a MORE specific header than the alias ("Amount" must not match "Withdrawal Amount(INR)")', () => {
+        // This is the exact collision an earlier (reverted) substring-based
+        // implementation produced: "Amount (INR)" is textually contained in
+        // "Withdrawal Amount(INR)", but they are meaningfully different
+        // columns. The fallback must only allow a *simpler* header than
+        // expected, never a *more specific* one.
+        const sheet = makeSheet([
+            ['Date', 'Payee', 'Withdrawal Amount(INR)'],
+            ['2024-06-01', 'Rent', '500.00'],
+        ]);
+        const preset: BankPreset = {
+            bank: Bank.ICICI,
+            dateHeaderAliases: ['Date'],
+            dateFormat: 'YYYY-MM-DD',
+            payeeHeaderAliases: ['Payee'],
+            amountPattern: 'signed',
+            amountHeaderAliases: ['Amount (INR)'],
+        };
+
+        expect(resolvePresetMapping(sheet, preset)).toBeNull();
+    });
+
+    it('does not match on very short/generic tokens alone', () => {
+        const sheet = makeSheet([
+            ['Date', 'Description', 'Category'],
+            ['2024-06-01', 'Salary', 'Income'],
+        ]);
+        const preset: BankPreset = {
+            bank: Bank.Axis,
+            dateHeaderAliases: ['Transaction Date'],
+            dateFormat: 'YYYY-MM-DD',
+            payeeHeaderAliases: ['Payee'], // no "Payee"-like header present at all
+            amountPattern: 'signed',
+            amountHeaderAliases: ['Amount'],
+        };
+
+        expect(resolvePresetMapping(sheet, preset)).toBeNull();
     });
 });

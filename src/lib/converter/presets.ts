@@ -134,10 +134,75 @@ export const BANK_PRESETS: BankPreset[] = [
     },
 ];
 
-function findFirstMatch(sheet: XLSX.WorkSheet, aliases: string[] | undefined): XLSX.CellAddress | null {
+function tokenize(text: string): string[] {
+    return text
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter((t) => t.length > 0);
+}
+
+const FUZZY_MIN_TOKEN_LENGTH = 3;
+const FUZZY_MIN_ALIAS_TOKEN_COVERAGE = 0.5;
+
+/**
+ * Approximate fallback for when no alias matches exactly — e.g. a preset
+ * expects "Transaction Date" but the file just says "Date". Tokenizes both
+ * the alias and each candidate header and matches only when the
+ * *candidate's* tokens are a subset of the *alias's* tokens: the file's
+ * header may be a simpler/shorter version of what was expected, but never a
+ * more specific one.
+ *
+ * That direction matters. An earlier, direction-agnostic substring version
+ * of this let a preset's "Amount (INR)" alias wrongly match a file's
+ * "Withdrawal Amount(INR)" header — textually one contains the other, but
+ * they're meaningfully different columns. Requiring candidate ⊆ alias (not
+ * the reverse) rules that out while still catching the stated use case.
+ */
+function findApproximateMatch(sheet: XLSX.WorkSheet, alias: string): XLSX.CellAddress | null {
+    const aliasTokens = tokenize(alias).filter((t) => t.length >= FUZZY_MIN_TOKEN_LENGTH);
+    if (aliasTokens.length === 0) return null;
+    const aliasTokenSet = new Set(aliasTokens);
+
+    const range = XLSX.utils.decode_range(sheet['!ref']!);
+    let best: { address: XLSX.CellAddress; coverage: number } | null = null;
+
+    for (let r = range.s.r; r <= range.e.r; r++) {
+        for (let c = range.s.c; c <= range.e.c; c++) {
+            const value = XLSXUtil.getCellValue(sheet, r, c);
+            if (typeof value !== 'string') continue;
+
+            const cellTokens = tokenize(value).filter((t) => t.length >= FUZZY_MIN_TOKEN_LENGTH);
+            if (cellTokens.length === 0) continue;
+
+            // Every candidate token must appear in the alias — the candidate
+            // may be a subset (simpler/shorter), never a superset.
+            const isSubset = cellTokens.every((t) => aliasTokenSet.has(t));
+            if (!isSubset) continue;
+
+            const coverage = cellTokens.length / aliasTokens.length;
+            if (coverage < FUZZY_MIN_ALIAS_TOKEN_COVERAGE) continue;
+
+            if (!best || coverage > best.coverage) {
+                best = { address: { r, c }, coverage };
+            }
+        }
+    }
+
+    return best?.address ?? null;
+}
+
+function findFirstMatch(sheet: XLSX.WorkSheet, aliases: string[] | undefined, allowFuzzy = true): XLSX.CellAddress | null {
     if (!aliases) return null;
     for (const alias of aliases) {
         const address = XLSXUtil.findTextIgnoringWhitespace(sheet, alias);
+        if (address) return address;
+    }
+    if (!allowFuzzy) return null;
+    // No exact match for any alias — fall back to an approximate one before
+    // giving up, so header variants no preset lists yet (e.g. "Date" instead
+    // of "Transaction Date") can still resolve.
+    for (const alias of aliases) {
+        const address = findApproximateMatch(sheet, alias);
         if (address) return address;
     }
     return null;
@@ -216,7 +281,12 @@ export function resolvePresetMapping(
     }
 
     let lastRow = range.e.r;
-    const sentinelAddr = findFirstMatch(sheet, preset.endSentinelHeaderAliases);
+    // Sentinels are rare, structural markers, not "column headers" in the
+    // same sense as the other roles — a wrong match here truncates the
+    // entire row range rather than just misreading one column, so this one
+    // requires an exact match (e.g. a bare "Details" payee header must not
+    // fuzzy-match "MESSAGE Details" as the sentinel).
+    const sentinelAddr = findFirstMatch(sheet, preset.endSentinelHeaderAliases, false);
     if (sentinelAddr && sentinelAddr.r - 1 < lastRow) {
         lastRow = sentinelAddr.r - 1;
     }

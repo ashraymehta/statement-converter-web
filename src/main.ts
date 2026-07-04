@@ -1,12 +1,7 @@
-import { enableProdMode, provideZoneChangeDetection } from '@angular/core';
-import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
+import './app.css';
+import App from './App.svelte';
+import { mount } from 'svelte';
 
-import { AppModule } from './app/app.module';
-import { environment } from './environments/environment';
+const app = mount(App, { target: document.getElementById('app')! });
 
-if (environment.production) {
-  enableProdMode();
-}
-
-platformBrowserDynamic().bootstrapModule(AppModule, { applicationProviders: [provideZoneChangeDetection()], })
-  .catch(err => console.error(err));
+export default app;

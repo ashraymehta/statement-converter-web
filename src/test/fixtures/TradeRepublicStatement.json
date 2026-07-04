@@ -1,0 +1,22 @@
+{
+  "items": [
+    {
+      "timestamp": "2024-06-01T10:00:00.000Z",
+      "title": "ACME Corp Dividend",
+      "eventType": "DIVIDEND",
+      "amount": { "value": "12.50" }
+    },
+    {
+      "timestamp": "2024-06-05T08:30:00.000Z",
+      "title": "Monthly savings plan",
+      "eventType": "SAVINGS_PLAN",
+      "amount": { "value": "-100.00" }
+    },
+    {
+      "timestamp": "2024-06-15T14:00:00.000Z",
+      "title": "FictiveETF sell",
+      "eventType": "SELL",
+      "amount": { "value": "350.00" }
+    }
+  ]
+}

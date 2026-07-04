@@ -50,8 +50,8 @@
 
 <div class="preview-wrapper">
   <div class="preview-header">
-    <h2 class="preview-title">Preview &amp; edit transactions</h2>
-    <span class="row-count">{rows.length} row{rows.length !== 1 ? 's' : ''}</span>
+    <span class="eyebrow">Ledger &middot; {rows.length} {rows.length === 1 ? 'entry' : 'entries'}</span>
+    <button class="btn-add" onclick={addRow}>+ Add entry</button>
   </div>
 
   <div class="table-scroll">
@@ -69,11 +69,11 @@
       </thead>
       <tbody>
         {#each rows as row, i (i)}
-          <tr>
+          <tr class="ledger-row" style="--row-index: {i}">
             <td>
               <input
                 type="date"
-                class="cell-input"
+                class="cell-input mono"
                 value={formatDate(row.Date)}
                 onchange={(e) => {
                   rows[i].Date = parseDate((e.target as HTMLInputElement).value);
@@ -102,7 +102,8 @@
             <td>
               <input
                 type="number"
-                class="cell-input num-input"
+                class="cell-input num-input mono"
+                class:ink-rust={row.Outflow > 0}
                 min="0"
                 step="0.01"
                 bind:value={rows[i].Outflow}
@@ -112,7 +113,8 @@
             <td>
               <input
                 type="number"
-                class="cell-input num-input"
+                class="cell-input num-input mono"
+                class:ink-green={row.Inflow > 0}
                 min="0"
                 step="0.01"
                 bind:value={rows[i].Inflow}
@@ -135,18 +137,14 @@
               <button
                 class="btn-delete"
                 onclick={() => deleteRow(i)}
-                aria-label="Delete row {i + 1}"
-                title="Delete row"
-              >×</button>
+                aria-label="Remove entry {i + 1}"
+                title="Remove entry"
+              >&times;</button>
             </td>
           </tr>
         {/each}
       </tbody>
     </table>
-  </div>
-
-  <div class="preview-footer">
-    <button class="btn-add" onclick={addRow}>+ Add row</button>
   </div>
 </div>
 
@@ -156,33 +154,22 @@
     flex-direction: column;
     gap: 1rem;
     background: var(--color-surface);
+    border: 1px solid var(--color-rule);
     border-radius: var(--radius-lg);
     padding: 1.5rem;
-    box-shadow: var(--shadow);
   }
 
   .preview-header {
     display: flex;
-    align-items: baseline;
+    align-items: center;
+    justify-content: space-between;
     gap: 1rem;
-  }
-
-  .preview-title {
-    margin: 0;
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: var(--color-text);
-  }
-
-  .row-count {
-    font-size: 0.85rem;
-    color: var(--color-text-muted);
   }
 
   .table-scroll {
     overflow-x: auto;
+    border: 1px solid var(--color-rule);
     border-radius: var(--radius);
-    border: 1px solid var(--color-border);
   }
 
   .preview-table {
@@ -192,21 +179,22 @@
   }
 
   .preview-table th {
-    background: var(--color-surface-raised);
-    color: var(--color-text-muted);
-    font-weight: 600;
-    font-size: 0.78rem;
+    background: var(--color-surface-alt);
+    color: var(--color-ink-muted);
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.72rem;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 0.6rem 0.75rem;
+    letter-spacing: 0.07em;
+    padding: 0.65rem 0.75rem;
     text-align: left;
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 2px solid var(--color-rule-strong);
     white-space: nowrap;
   }
 
   .preview-table td {
     padding: 0.3rem 0.4rem;
-    border-bottom: 1px solid var(--color-border-subtle);
+    border-bottom: 1px solid var(--color-rule);
     vertical-align: middle;
   }
 
@@ -214,8 +202,23 @@
     border-bottom: none;
   }
 
-  .preview-table tr:hover td {
-    background: var(--color-accent-subtle);
+  /* Alternating rows, subtle parchment tint */
+  .ledger-row:nth-child(even) td {
+    background: var(--color-paper);
+  }
+
+  .ledger-row:hover td {
+    background: var(--color-surface-alt);
+  }
+
+  .ledger-row {
+    animation: post-entry 0.28s ease backwards;
+    animation-delay: calc(var(--row-index) * 25ms);
+  }
+
+  @keyframes post-entry {
+    from { opacity: 0; transform: translateY(3px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
   .num-col {
@@ -232,60 +235,65 @@
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
     background: transparent;
-    color: var(--color-text);
+    color: var(--color-ink);
     font-size: inherit;
     font-family: inherit;
     min-width: 6rem;
     box-sizing: border-box;
   }
 
-  .cell-input:focus {
+  .cell-input:focus-visible {
     outline: none;
-    border-color: var(--color-accent);
-    background: var(--color-bg);
+    border-color: var(--color-green);
+    background: var(--color-surface);
   }
 
   .num-input {
-    min-width: 5rem;
+    min-width: 5.5rem;
     text-align: right;
+  }
+
+  .ink-rust {
+    color: var(--color-rust);
+  }
+
+  .ink-green {
+    color: var(--color-green-dark);
   }
 
   .btn-delete {
     background: none;
     border: none;
     cursor: pointer;
-    color: var(--color-error);
+    color: var(--color-rust);
     font-size: 1.1rem;
     padding: 0.1rem 0.3rem;
     border-radius: var(--radius-sm);
     line-height: 1;
-    opacity: 0.6;
+    opacity: 0.55;
   }
 
   .btn-delete:hover {
     opacity: 1;
-    background: var(--color-error-bg);
-  }
-
-  .preview-footer {
-    display: flex;
-    justify-content: flex-start;
+    background: var(--color-rust-tint);
   }
 
   .btn-add {
     background: none;
-    border: 1.5px dashed var(--color-border);
+    border: 1px solid var(--color-rule);
     border-radius: var(--radius);
-    color: var(--color-text-muted);
+    color: var(--color-ink-muted);
     cursor: pointer;
-    padding: 0.4rem 1rem;
-    font-size: 0.875rem;
-    font-family: inherit;
+    padding: 0.35rem 0.85rem;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 500;
     transition: border-color 0.15s, color 0.15s;
+    white-space: nowrap;
   }
 
   .btn-add:hover {
-    border-color: var(--color-accent);
-    color: var(--color-accent);
+    border-color: var(--color-green);
+    color: var(--color-green);
   }
 </style>

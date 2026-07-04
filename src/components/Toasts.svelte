@@ -5,8 +5,21 @@
 <div class="toast-container" aria-live="polite">
   {#each $toasts as toast (toast.id)}
     <div class="toast toast--{toast.type}" role="alert">
+      <span class="toast__icon" aria-hidden="true">
+        {#if toast.type === 'success'}
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M2.5 8.5 L6 12 L13.5 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        {:else}
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M8 2 L15 14 H1 Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+            <line x1="8" y1="6.5" x2="8" y2="9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+            <circle cx="8" cy="11.7" r="0.9" fill="currentColor" />
+          </svg>
+        {/if}
+      </span>
       <span class="toast__message">{toast.message}</span>
-      <button class="toast__close" onclick={() => toasts.remove(toast.id)} aria-label="Dismiss">×</button>
+      <button class="toast__close" onclick={() => toasts.remove(toast.id)} aria-label="Dismiss">&times;</button>
     </div>
   {/each}
 </div>
@@ -26,41 +39,54 @@
   .toast {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    border-radius: var(--radius);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    font-size: 0.9rem;
+    gap: 0.6rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-float);
+    font-size: 0.88rem;
     animation: slide-in 0.2s ease;
   }
 
   .toast--success {
-    background: var(--color-success-bg);
-    color: var(--color-success-text);
-    border-left: 4px solid var(--color-success);
+    border-left: 3px solid var(--color-green);
+  }
+
+  .toast--success .toast__icon {
+    color: var(--color-green);
   }
 
   .toast--error {
-    background: var(--color-error-bg);
-    color: var(--color-error-text);
-    border-left: 4px solid var(--color-error);
+    border-left: 3px solid var(--color-rust);
+  }
+
+  .toast--error .toast__icon {
+    color: var(--color-rust);
+  }
+
+  .toast__icon {
+    display: flex;
+    flex-shrink: 0;
+  }
+
+  .toast__message {
+    flex: 1;
+    color: var(--color-ink);
   }
 
   .toast__close {
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     line-height: 1;
     padding: 0;
-    color: inherit;
-    opacity: 0.7;
+    color: var(--color-ink-muted);
     flex-shrink: 0;
   }
 
   .toast__close:hover {
-    opacity: 1;
+    color: var(--color-ink);
   }
 
   @keyframes slide-in {

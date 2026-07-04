@@ -1,68 +1,68 @@
 /* ────────────────────────────────────────────────────────────
-   Google Fonts
+   Fonts — Space Grotesk (display), IBM Plex Sans (body/UI),
+   IBM Plex Mono (data, amounts, structural labels)
 ────────────────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 /* ────────────────────────────────────────────────────────────
-   Design tokens (light theme)
+   Design tokens — "ledger" system
+   Light mode: warm sepia/parchment paper, dark ink text, rust for
+   debits (a nod to the red ink accountants use for outflows).
 ────────────────────────────────────────────────────────────── */
 :root {
-  /* Palette */
-  --color-accent:        #4a6cf7;
-  --color-accent-dark:   #3457d5;
-  --color-accent-subtle: rgba(74, 108, 247, 0.08);
+  --font-display: 'Space Grotesk', ui-sans-serif, sans-serif;
+  --font-body:    'IBM Plex Sans', ui-sans-serif, sans-serif;
+  --font-mono:    'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
 
-  /* Backgrounds */
-  --color-bg:             #f5f7fb;
-  --color-surface:        #ffffff;
-  --color-surface-raised: #f0f2f8;
+  /* Paper & surfaces */
+  --color-paper:      #f7f1e4;
+  --color-surface:    #fffdf8;
+  --color-surface-alt:#efe6d2;
 
-  /* Text */
-  --color-text:           #1a1d2e;
-  --color-text-muted:     #6b7280;
+  /* Ink */
+  --color-ink:        #2b2418;
+  --color-ink-muted:  #8a7a5c;
 
-  /* Borders */
-  --color-border:         #e2e6f0;
-  --color-border-subtle:  #eff1f7;
+  /* Ledger green — credits, primary actions */
+  --color-green:      #1f6f4a;
+  --color-green-dark: #175939;
+  --color-green-tint: #e2ece5;
 
-  /* Status */
-  --color-success:        #16a34a;
-  --color-success-bg:     #f0fdf4;
-  --color-success-text:   #14532d;
-  --color-error:          #dc2626;
-  --color-error-bg:       #fef2f2;
-  --color-error-text:     #7f1d1d;
+  /* Ledger rust — debits, errors */
+  --color-rust:       #b1432b;
+  --color-rust-tint:  #f5e2d7;
 
-  /* Shape & depth */
-  --radius-sm: 4px;
-  --radius:    8px;
-  --radius-lg: 12px;
-  --shadow:    0 1px 4px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.05);
+  /* Rules */
+  --color-rule:        #ddd0b3;
+  --color-rule-strong: #c2ad84;
+
+  /* Shape & depth — flat, ruled paper rather than lifted cards */
+  --radius-sm: 2px;
+  --radius:    3px;
+  --radius-lg: 4px;
+  --shadow-float: 0 2px 10px rgba(43, 36, 24, 0.16);
 }
 
-/* Dark theme */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-accent:        #6b8aff;
-    --color-accent-dark:   #4a6cf7;
-    --color-accent-subtle: rgba(107, 138, 255, 0.12);
+    --color-paper:      #1b160f;
+    --color-surface:    #231d15;
+    --color-surface-alt:#2b2318;
 
-    --color-bg:             #0f1117;
-    --color-surface:        #1a1d2e;
-    --color-surface-raised: #21253a;
+    --color-ink:        #ece3d2;
+    --color-ink-muted:  #a3937a;
 
-    --color-text:           #e8eaf6;
-    --color-text-muted:     #8892b0;
+    --color-green:      #5fb583;
+    --color-green-dark: #3f8f63;
+    --color-green-tint: rgba(95, 181, 131, 0.14);
 
-    --color-border:         #2e3250;
-    --color-border-subtle:  #222640;
+    --color-rust:       #e2825d;
+    --color-rust-tint:  rgba(226, 130, 93, 0.16);
 
-    --color-success:        #4ade80;
-    --color-success-bg:     #052e16;
-    --color-success-text:   #bbf7d0;
-    --color-error:          #f87171;
-    --color-error-bg:       #450a0a;
-    --color-error-text:     #fecaca;
+    --color-rule:        #3a2f22;
+    --color-rule-strong: #504027;
+
+    --shadow-float: 0 2px 14px rgba(0, 0, 0, 0.5);
   }
 }
 
@@ -80,21 +80,63 @@ html {
 
 body {
   margin: 0;
-  font-family: 'Nunito', system-ui, sans-serif;
-  background: var(--color-bg);
-  color: var(--color-text);
+  font-family: var(--font-body);
+  background: var(--color-paper);
+  color: var(--color-ink);
   line-height: 1.6;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  line-height: 1.3;
+  line-height: 1.25;
+  font-family: var(--font-display);
+}
+
+p {
+  margin: 0;
 }
 
 a {
-  color: var(--color-accent);
+  color: var(--color-green);
+}
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-green);
+  outline-offset: 2px;
+}
+
+/* Utility: tabular figures for anything money/date related */
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Utility: small tracked uppercase label, used for structural
+   headings (LEDGER, EXPORT AS, STATEMENT FROM) */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--color-ink-muted);
 }
 
 /* Scrollbar (WebKit) */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 99px; }
+::-webkit-scrollbar-thumb { background: var(--color-rule-strong); border-radius: 99px; }
+
+/* Respect reduced-motion preference everywhere */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

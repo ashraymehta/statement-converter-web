@@ -43,32 +43,40 @@
       toasts.show(`Downloaded ${filename}`);
     } catch (err) {
       console.error('Export failed:', err);
-      toasts.show('Export failed. See console for details.', 'error');
+      toasts.show('Couldn’t export the file. Check the console for details.', 'error');
     }
   }
 </script>
 
 <div class="export-bar">
-  <div class="export-left">
-    <fieldset class="format-group">
-      <legend class="format-legend">Export format</legend>
-      <label class="format-option">
-        <input type="radio" name="format" value="qif" bind:group={format} />
-        QIF
-      </label>
-      <label class="format-option">
-        <input type="radio" name="format" value="csv" bind:group={format} />
-        CSV
-      </label>
-    </fieldset>
+  <div class="format-field">
+    <span class="eyebrow">Export as</span>
+    <div class="format-toggle" role="radiogroup" aria-label="Export format">
+      <button
+        type="button"
+        class="format-option mono"
+        class:format-option--active={format === 'qif'}
+        role="radio"
+        aria-checked={format === 'qif'}
+        onclick={() => (format = 'qif')}
+      >QIF</button>
+      <button
+        type="button"
+        class="format-option mono"
+        class:format-option--active={format === 'csv'}
+        role="radio"
+        aria-checked={format === 'csv'}
+        onclick={() => (format = 'csv')}
+      >CSV</button>
+    </div>
   </div>
 
   <div class="export-actions">
     <button class="btn btn--ghost" onclick={onreset}>
-      ← Convert another
+      New statement
     </button>
     <button class="btn btn--primary" onclick={download}>
-      Download .{format}
+      Download <span class="mono">.{format}</span>
     </button>
   </div>
 </div>
@@ -79,40 +87,50 @@
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: 1.25rem;
     background: var(--color-surface);
+    border: 1px solid var(--color-rule);
     border-radius: var(--radius-lg);
     padding: 1.25rem 1.5rem;
-    box-shadow: var(--shadow);
   }
 
-  .format-group {
-    border: none;
-    padding: 0;
-    margin: 0;
+  .format-field {
     display: flex;
     align-items: center;
-    gap: 1.25rem;
+    gap: 0.85rem;
   }
 
-  .format-legend {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 0;
-    margin-bottom: 0.5rem;
-    float: left;
-    width: 100%;
+  .format-toggle {
+    display: flex;
+    gap: 0.4rem;
   }
 
   .format-option {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.95rem;
+    background: none;
+    border: 1.5px solid var(--color-rule-strong);
+    border-radius: var(--radius-sm);
+    color: var(--color-ink-muted);
+    padding: 0.3rem 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
     cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .format-option:hover {
+    border-color: var(--color-green);
+    color: var(--color-green);
+  }
+
+  .format-option--active {
+    background: var(--color-green);
+    border-color: var(--color-green);
+    color: #fff;
+  }
+
+  .format-option--active:hover {
+    color: #fff;
   }
 
   .export-actions {
@@ -125,8 +143,8 @@
   .btn {
     padding: 0.55rem 1.25rem;
     border-radius: var(--radius);
+    font-family: var(--font-body);
     font-size: 0.9rem;
-    font-family: inherit;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
@@ -134,23 +152,24 @@
   }
 
   .btn--primary {
-    background: var(--color-accent);
+    background: var(--color-green);
     color: #fff;
-    border: none;
+    border: 1px solid var(--color-green);
   }
 
   .btn--primary:hover {
-    background: var(--color-accent-dark);
+    background: var(--color-green-dark);
+    border-color: var(--color-green-dark);
   }
 
   .btn--ghost {
     background: none;
-    color: var(--color-text-muted);
-    border: 1.5px solid var(--color-border);
+    color: var(--color-ink);
+    border: 1px solid var(--color-rule-strong);
   }
 
   .btn--ghost:hover {
-    border-color: var(--color-accent);
-    color: var(--color-accent);
+    border-color: var(--color-green);
+    color: var(--color-green);
   }
 </style>

@@ -2,6 +2,11 @@
 /dist
 /tmp
 
+# Playwright
+/test-results
+/playwright-report
+/blob-report
+
 # dependencies
 /node_modules
 # Vite dev cache (created when root: 'src' is set)

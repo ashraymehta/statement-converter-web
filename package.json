@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json"
   },
   "engines": {

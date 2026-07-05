@@ -162,6 +162,10 @@
 
       rawRows.forEach((row, i) => {
         row.cells[columnIndex] = parsed[i];
+        // A row whose date didn't parse would otherwise stay checked/included
+        // while silently being dropped from the export — surface it as an
+        // error instead (see hasDateError) and keep `included` truthful.
+        if (parsed[i] === null) row.included = false;
       });
       mapping.dateFormat = format;
       normalized[columnIndex] = true;
@@ -194,13 +198,22 @@
     syncFromRawRows();
   }
 
+  /** True once a mapped date column's cell failed to parse for this row — it
+   *  can't be included until the user fixes the date (the input stays
+   *  editable; see the date <input>'s onchange below). */
+  function hasDateError(row: { cells: WorkingCell[] }): boolean {
+    const dateCol = mapping.roles.indexOf('date');
+    return dateCol !== -1 && row.cells[dateCol] === null;
+  }
+
   function toggleRawRow(i: number) {
+    if (hasDateError(rawRows[i])) return; // disabled in the UI; guard defensively too
     rawRows[i].included = !rawRows[i].included;
     syncFromRawRows();
   }
 
   function toggleAllRaw(value: boolean) {
-    rawRows = rawRows.map((r) => ({ ...r, included: value }));
+    rawRows = rawRows.map((r) => ({ ...r, included: hasDateError(r) ? false : value }));
     syncFromRawRows();
   }
 
@@ -404,12 +417,19 @@
       <tbody>
         {#if isRaw}
           {#each rawRows as row, i (i)}
-            <tr class="ledger-row" class:ledger-row--excluded={!row.included} style="--row-index: {i}">
+            <tr
+              class="ledger-row"
+              class:ledger-row--excluded={!row.included}
+              class:ledger-row--error={hasDateError(row)}
+              style="--row-index: {i}"
+            >
               <td class="checkbox-col">
                 <input
                   type="checkbox"
                   class="row-toggle"
                   checked={row.included}
+                  disabled={hasDateError(row)}
+                  title={hasDateError(row) ? 'Fix the date to include this entry' : undefined}
                   onchange={() => toggleRawRow(i)}
                   aria-label="Include entry {i + 1} in conversion"
                 />
@@ -426,12 +446,17 @@
                     <input
                       type="date"
                       class="cell-input mono"
+                      class:cell-input--error={hasDateError(row)}
                       value={dateInputValue(row.cells[c])}
                       onchange={(e) => {
                         row.cells[c] = parseDate((e.target as HTMLInputElement).value);
+                        row.included = true;
                         syncFromRawRows();
                       }}
                     />
+                    {#if hasDateError(row)}
+                      <span class="cell-error">Couldn’t read this date — edit to fix</span>
+                    {/if}
                   {:else if mapping.roles[c] === 'amount'}
                     <input
                       type="number"
@@ -639,6 +664,32 @@
 
   .ledger-row--excluded {
     opacity: 0.5;
+  }
+
+  /* Error rows stay fully visible (unlike plain excluded rows) since they
+     need the user's attention — a tinted background rather than dimming. */
+  .ledger-row--error {
+    opacity: 1;
+  }
+
+  .ledger-row--error td {
+    background: var(--color-rust-tint);
+  }
+
+  .ledger-row--error:hover td {
+    background: var(--color-rust-tint);
+  }
+
+  .cell-input--error {
+    border-color: var(--color-rust);
+  }
+
+  .cell-error {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.68rem;
+    color: var(--color-rust);
+    white-space: nowrap;
   }
 
   .ledger-row {

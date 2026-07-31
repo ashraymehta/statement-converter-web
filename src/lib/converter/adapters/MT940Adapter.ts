@@ -1,9 +1,17 @@
 import dayjs from 'dayjs';
-import parser from 'stitch-swiftmessageparser';
+import * as swiftMessageParser from 'stitch-swiftmessageparser';
 import type { Transaction as SwiftTransaction } from 'stitch-swiftmessageparser/dist/lib/transaction';
 import { Bank } from '../models/Bank';
 import { type Transaction } from '../models/Transaction';
 import { TransactionAdapter } from './TransactionAdapter';
+import { unwrapDefault } from '../helpers/unwrapDefault';
+
+// See NumberUtil.ts for why this can't be a plain default import: this is
+// also a Babel/TS-compiled CJS module whose default export gets double-wrapped
+// by some bundlers' CJS/ESM interop.
+const parser = unwrapDefault<{ parse: (opts: { data: string; type: 'mt940' | 'mt942' }) => { transactions: SwiftTransaction[] }[] }>(
+    swiftMessageParser,
+);
 
 export class MT940Adapter extends TransactionAdapter {
     public async convert(data: ArrayBuffer): Promise<Transaction[]> {

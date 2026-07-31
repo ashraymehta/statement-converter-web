@@ -1,18 +1,8 @@
 import * as multiNumberParse from 'multi-number-parse';
+import { unwrapDefault } from './unwrapDefault';
 
-// `multi-number-parse` is a Babel-compiled CJS module (`exports.default = fn`).
-// Depending on the bundler's CJS/ESM interop, a plain default import can end up
-// bound to the wrapped module object instead of the function itself — unwrap
-// any nesting defensively rather than relying on interop matching one shape.
-type ParseFn = (text: string) => number;
-function unwrapDefault(mod: unknown): ParseFn {
-    let value = mod;
-    while (value && typeof value !== 'function' && typeof value === 'object' && 'default' in value) {
-        value = (value as { default: unknown }).default;
-    }
-    return value as ParseFn;
-}
-const parse = unwrapDefault(multiNumberParse);
+// See unwrapDefault.ts for why this can't be a plain default import.
+const parse = unwrapDefault<(text: string) => number>(multiNumberParse);
 
 const CURRENCY_PATTERN = /^(INR|USD|EUR|GBP|[₹$€£])\s*|\s*(INR|USD|EUR|GBP)$/gi;
 const INDICATOR_PATTERN = /^(dr|debit|cr|credit)\.?|(dr|debit|cr|credit)\.?$/i;

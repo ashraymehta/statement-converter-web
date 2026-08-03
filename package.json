@@ -19,7 +19,7 @@
     "url": "https://github.com/ashraymehta/statement-converter-web/"
   },
   "dependencies": {
-    "dayjs": "1.11.13",
+    "dayjs": "1.11.21",
     "multi-number-parse": "1.1.0",
     "stitch-swiftmessageparser": "2.0.1",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz"
